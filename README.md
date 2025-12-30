@@ -36,6 +36,8 @@ The API may change since the development!
 
 Remux uses a custom semantic versioning scheme:
 
+- vX.Y.Z
+
 - **X** — project stage
   - 0 — alpha (unstable, experimental) (Code name: "Bootstrap")
   - 1 — beta (API mostly stable)
