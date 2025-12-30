@@ -31,6 +31,21 @@ The API may change since the development!
 - gui  — graphical frontend (planned)
 - lua  — scripting / plugins (planned)
 
+  
+## Versioning
+
+Remux uses a custom semantic versioning scheme:
+
+- **X** — project stage
+  - 0 — alpha (unstable, experimental) (Code name: "Bootstrap")
+  - 1 — beta (API mostly stable)
+  - 2 — stable releases
+- **Y** — feature releases
+- **Z** — bugfix releases
+
+Major releases (X) may have code names.
+
+
 ## Development
 
 To build for develop: 
@@ -44,7 +59,7 @@ To build for Release:
 cargo build --release
 ```
 
-Running:
+## Running:
 
 ```sh
 ./target/release/remux
@@ -53,8 +68,6 @@ Running:
 
 To learn all available commands for bind() 
 Lua and default configuration for Remux, check out - `init.lua` file
-
-
 
 
 License: MIT
