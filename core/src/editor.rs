@@ -1,7 +1,11 @@
 use bitflags::bitflags;
+use mlua::Lua;
 use crate::buffer::Buffer;
 use std::collections::HashMap;
 use crate::minibuffer::{MiniBuffer, MiniBufferMode, };
+use crate::command::{CommandRegistry, CommandContext };
+use crate::hooks::HookRegistry;
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputMode {
@@ -9,11 +13,34 @@ pub enum InputMode {
     MiniBuffer,
 }
 
+
+pub enum EditorEvent {
+    ExecuteCommand(String),
+    Message(String),
+    OpenFile(String),
+    AddHook {
+        name: String,
+        func: mlua::RegistryKey,
+    },
+}
+ 
+
+pub struct App {
+    pub lua: Lua,
+    pub editor: Editor,
+}
+
 pub struct Editor {
     pub buffer: Buffer,
+    pub kill_buffer: Option<String>,
     pub minibuffer: MiniBuffer,
+    pub commands: CommandRegistry,
+    pub hooks: HookRegistry,
     pub mode: InputMode,
     pub should_quit: bool,
+    pub event_queue: Vec<EditorEvent>,
+    pub scroll_y: usize,
+    pub viewport_height: usize,
 }
 
 bitflags! {
@@ -42,30 +69,9 @@ impl Modifiers {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Command {
-    MoveLeft,
-    MoveRight,
-    MoveUp,
-    MoveDown,
-    KillRemux,
-    Insert(char),
-    DeleteChar,
-    BackwardDeleteChar,
-    NewLine,
-    FindFile(String),
-    SaveBuffer,
-    MoveBeginningOfLine,
-    MoveEndOfLine,
-    MoveBeginningOfBuffer,
-    MoveEndOfBuffer,
-    ExecuteCommand,
-}
-
 pub struct KeyMap {
-    bindings: HashMap<(Modifiers, char), Command>,
+    bindings: HashMap<(Modifiers, char), String>,
 }
-
 
 impl KeyMap {
     pub fn new() -> Self {
@@ -73,152 +79,161 @@ impl KeyMap {
             bindings: HashMap::new(),
         }
     }
-
-    pub fn bind(&mut self, mods: Modifiers, key: char, cmd: Command) {
-        self.bindings.insert((mods, key), cmd);
+    pub fn bind(&mut self, mods: Modifiers, key: char, cmd: String) {
+	self.bindings.insert((mods, key), cmd);
     }
 
-    pub fn lookup(&self, mods: Modifiers, key: char) -> Option<&Command> {
-        self.bindings.get(&(mods, key))
-    }
-/*
-    pub fn register_command(&mut self, name: &str, cmd: Command) {
-        self.commands.insert(name.to_string(), cmd);
+    pub fn lookup(&self, mods: Modifiers, key: char) -> Option<&String> {
+	self.bindings.get(&(mods, key))
     }
 
-    pub fn command_by_name(&self, name: &str) -> Option<&Command> {
-        self.commands.get(name)
-}
-    */
 }
 
 impl Editor {
-    pub fn new() -> Self {
+    pub fn new(commands: CommandRegistry) -> Self {
         Self {
             buffer: Buffer::new(),
+	    kill_buffer: None,
 	    minibuffer: MiniBuffer::default(),
+	    commands,
+	    event_queue: Vec::new(),
+	    hooks: HookRegistry::new(),
             should_quit: false,
-	    mode: InputMode::Normal
+	    mode: InputMode::Normal,
+	    scroll_y: 0,
+	    viewport_height: 0,
         }
     }
-    
-    pub fn execute_minibuffer(&mut self) {
-	let input = self.minibuffer.get().trim().to_string();
-	
-	match self.minibuffer.mode() {
-	    MiniBufferMode::Command => {
-		let cmd = input.strip_prefix("M-x ").unwrap_or("").trim();
-		match cmd {
-		    "find-file" => {
-			self.minibuffer.activate(
-			    "Find file: ",
-			    MiniBufferMode::FindFile,
-			);
-			self.mode = InputMode::MiniBuffer;
-			return;
-		    }
-		    "save-buffer" => {
-			self.buffer.save();
-			self.minibuffer.deactivate();
-                    }
-                    "kill-remux" => self.should_quit = true,
-                    _ => {
-			self.minibuffer.activate(
-                            "Unknown command",
-                            MiniBufferMode::Message,
-			);
-                    }
+    fn process_events(&mut self, lua: &Lua) {
+	let events = std::mem::take(&mut self.event_queue);
+/*
+	if let MiniBufferMode::Message { ttl } = self.minibuffer.mode() {
+	    if ttl <= 1 {
+		self.minibuffer.clear();
+	    } else {
+		self.minibuffer.tick();
+	    }
+    }
+*/      self.minibuffer.tick();	
+	for ev in events {
+            match ev {
+		EditorEvent::ExecuteCommand(name) => {
+                    self.execute_named(&name, lua);
 		}
+		EditorEvent::Message(msg) => {
+                    self.minibuffer.message(&msg);
+		}
+		EditorEvent::OpenFile(path) => {
+                    let _ = self.buffer.open_file(path.into());
+		}
+		EditorEvent::AddHook { name, func } => {
+                    self.hooks.add_key(name, func);
+                }
             }
-
-	    MiniBufferMode::FindFile => {
-		let path = input.strip_prefix("Find file: ").unwrap_or("").trim();
-		match self.buffer.open_file(path.into()) {
-		    Ok(_) => {
-			self.minibuffer.activate(
-			    "Opened file",
-			    MiniBufferMode::Message,
-			);
-		    }
-		    Err(e) => {
-			self.minibuffer.activate(
-			    &format!("Open failed: {}", e),
-			    MiniBufferMode::Message,
-			);
-		    }
-		}
-	    }
-
-	    MiniBufferMode::Message => {
-		self.minibuffer.deactivate();
-	    }
 	}
-	
+    }
+
+    
+    fn minibuffer_input(&self) -> &str {
+        match self.minibuffer.mode() {
+            MiniBufferMode::Command => {
+                self.minibuffer
+                    .get()
+                    .strip_prefix("M-x ")
+                    .unwrap_or("")
+            }
+            MiniBufferMode::FindFile => {
+                self.minibuffer
+                    .get()
+                    .strip_prefix("Find file: ")
+                    .unwrap_or("")
+            }
+            _ => "",
+        }
+    }
+
+    pub fn clamp_scroll(&mut self) {
+	let max = self.buffer.lines.len().saturating_sub(self.viewport_height);
+	self.scroll_y = self.scroll_y.min(max);
+    }
+
+    pub fn ensure_cursor_visible(&mut self) {
+        let vh = self.viewport_height;
+        if vh == 0 {
+            return;
+        }
+
+        // курсор выше окна
+        if self.buffer.cursor_y < self.scroll_y {
+            self.scroll_y = self.buffer.cursor_y;
+        }
+
+        // курсор ниже окна
+        if self.buffer.cursor_y >= self.scroll_y + vh {
+            self.scroll_y = self.buffer.cursor_y + 1 - vh;
+        }
+
+        self.clamp_scroll();
+    }
+
+    pub fn scroll_up(&mut self) {
+        let max = self.buffer.lines.len().saturating_sub(1);
+        self.scroll_y = (self.scroll_y + self.viewport_height)
+            .min(max);
+
+        if self.buffer.cursor_y < self.scroll_y {
+            self.buffer.cursor_y = self.scroll_y;
+        }
+    }
+
+
+    pub fn scroll_down(&mut self) {
+        if self.scroll_y >= self.viewport_height {
+            self.scroll_y -= self.viewport_height;
+        } else {
+            self.scroll_y = 0;
+        }
+
+        if self.buffer.cursor_y < self.scroll_y {
+            self.buffer.cursor_y = self.scroll_y;
+        }
+    }
+
+    pub fn execute_named(&mut self, name: &str, lua: &Lua) {
+	self.hooks.run(lua, "before-command", name);
+	if let Some(cmd) = self.commands.get(name) {
+            (cmd.run)(CommandContext {
+		editor: self,
+		arg: None,
+            });
+	} else {
+            self.minibuffer.message("Unknown command");
+	}
+	self.hooks.run(lua, "after-command", name);
+
+	self.process_events(lua);
+    }
+    pub fn execute_minibuffer(&mut self, lua: &Lua) {
+	let input = self.minibuffer_input().trim().to_string();
+	let mode = self.minibuffer.mode();
+
+	self.minibuffer.deactivate();
 	self.mode = InputMode::Normal;
-    }
 
-    pub fn execute_named_command(&mut self, name: &str) {
-	match name {
-            "find-file" => {
-		self.mode = InputMode::MiniBuffer;
-		self.minibuffer.activate("Find file: ", MiniBufferMode::FindFile);
-            }
-            "save-buffer" => {
-		match self.buffer.save() {
-                    Ok(_) => {
-			self.minibuffer.activate("Buffer saved!", MiniBufferMode::Message);
-                    }
-                    Err(e) => {
-			self.minibuffer.activate(
-                            &format!("Save failed: {}", e),
-                            MiniBufferMode::Message,
-			);
-                    }
+	match mode {
+            MiniBufferMode::FindFile => {
+		match self.buffer.open_file(input.into()) {
+                    Ok(_) => self.minibuffer.message("Opened file"),
+                    Err(e) => self.minibuffer.message(&format!("Open failed: {e}")),
 		}
             }
-            "kill-remux" => self.should_quit = true,
-            _ => {
-		self.minibuffer.activate("Unknown command", MiniBufferMode::Message);
+
+            MiniBufferMode::Command => {
+		self.execute_named(&input, lua);
             }
+
+            _ => {}
 	}
     }
-    
-    
-    pub fn quit(&mut self) {
-        self.should_quit = true;
-    }
-    
-    pub fn execute(&mut self, cmd: Command) {
-        match cmd {
-            Command::MoveLeft => self.buffer.move_left(),
-            Command::MoveRight => self.buffer.move_right(),
-            Command::MoveUp => self.buffer.move_up(),
-            Command::MoveDown => self.buffer.move_down(),
-	    Command::MoveBeginningOfLine => self.buffer.move_bol(),
-	    Command::MoveEndOfLine => self.buffer.move_eol(),
-	    Command::MoveBeginningOfBuffer => self.buffer.move_beginning_of_buffer(),
-            Command::MoveEndOfBuffer => self.buffer.move_end_of_buffer(),
-            Command::KillRemux => self.quit(),
-            Command::Insert(c) => self.buffer.insert_char(c),
-	    Command::DeleteChar => self.buffer.delete_char(),
-	    Command::BackwardDeleteChar => self.buffer.backward_delete_char(),
-	    Command::NewLine => self.buffer.insert_newline(),
-	    Command::FindFile(path) => {
-		match self.buffer.open_file(path.clone().into()) {
-		    Ok(_) => self.minibuffer.set_text(format!("Opened {}", path)),
-		    Err(e) => self.minibuffer.set_text(format!("Open failed: {}", e)),
-		}
-	    }
-	    Command::SaveBuffer => {
-		match self.buffer.save() {
-		    Ok(_) => self.minibuffer.set_text("Buffer was saved"),
-		    Err(e) => self.minibuffer.set_text(format!("Save failed: {}", e)),
-		}
-	    }
-	    Command::ExecuteCommand => {
-		self.mode = InputMode::MiniBuffer;
-		self.minibuffer.activate("M-x ", MiniBufferMode::Command);
-	    }
-        }
-    }
+
 }

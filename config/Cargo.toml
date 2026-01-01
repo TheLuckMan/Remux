@@ -1,0 +1,9 @@
+[package]
+name = "remux-config"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+remux-core = { path = "../core" }
+crossterm = "0.27"
+mlua = { version = "0.9", features = ["lua54"] }

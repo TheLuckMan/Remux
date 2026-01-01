@@ -1,8 +1,9 @@
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MiniBufferMode {
+    Inactive,
     Command,    // M-x
     FindFile,   // ожидание пути
-    Message,    // просто сообщение
+    Message { ttl: u8 },    // просто сообщение
 }
 
 pub struct MiniBuffer {
@@ -16,7 +17,7 @@ impl Default for MiniBuffer {
         Self {
             text: String::new(),
             active: false,
-            mode: MiniBufferMode::Message,
+            mode: MiniBufferMode::Message { ttl: 0 },
         }
     }
 }
@@ -26,6 +27,7 @@ impl MiniBuffer {
     pub fn activate(&mut self, prompt: &str, mode: MiniBufferMode) {
         self.text.clear();
         self.text.push_str(prompt);
+	self.text = self.text.to_string();
         self.active = true;
         self.mode = mode;
     }
@@ -33,12 +35,33 @@ impl MiniBuffer {
     pub fn deactivate(&mut self) {
         self.text.clear();
         self.active = false;
-        self.mode = MiniBufferMode::Message;
+        self.mode = MiniBufferMode::Message { ttl: 0 };
     }
     
    pub fn set_text<S: Into<String>>(&mut self, text: S) {
         self.text = text.into();
+   }
+
+     pub fn message(&mut self, text: &str) {
+        self.activate(text, MiniBufferMode::Message { ttl: 2 });
+     }
+
+    
+    pub fn clear(&mut self) {
+        self.text.clear();
+        self.mode = MiniBufferMode::Inactive;
     }
+
+    pub fn tick(&mut self) {
+        if let MiniBufferMode::Message { ttl } = self.mode {
+            if ttl <= 1 {
+                self.clear();
+            } else {
+                self.mode = MiniBufferMode::Message { ttl: ttl - 1 };
+            }
+        }
+    }
+
     
     pub fn push(&mut self, c: char) {
         self.text.push(c);

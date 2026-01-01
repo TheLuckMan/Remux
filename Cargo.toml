@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "core",
+  "config",
   "tui"
 ]
-resolver = "2"
+resolver = "3"

@@ -19,34 +19,18 @@ The API may change since the development!
 - Moving the cursor
 - Mini-buffer in the style of Emacs
 - Calling teams through 'M-x'
-- ‘find-file’ – Opening files
-- 'save-buffer' – Preserving the current buffer
+- ‘find-file’ - Opening files
+- 'save-buffer' - Preserving the current buffer
 - Lua configuration (keymap, commands)
 - TUI based on 'ratatui'/'crossterm'
 
 ## Architecture
 
-- core — editor engine (buffer, core-commands, minibuffer)
-- tui  — terminal frontend
-- gui  — graphical frontend (planned)
-- lua  — scripting / plugins (planned)
-
-  
-## Versioning
-
-Remux uses a custom semantic versioning scheme:
-
-- vX.Y.Z
-
-- **X** — project stage
-  - 0 — alpha (unstable, experimental) (Code name: "Bootstrap")
-  - 1 — beta (API mostly stable)
-  - 2 — stable releases
-- **Y** — feature releases
-- **Z** — bugfix releases
-
-Major releases (X) may have code names.
-
+- core - editor engine (buffer, core-commands, minibuffer)
+- config - Lua, Hooks (Soon migrated into from core)
+- tui  - terminal frontend
+- gui  - graphical frontend (planned)
+- lua  - scripting / plugins (planned)
 
 ## Development
 
@@ -61,7 +45,7 @@ To build for Release:
 cargo build --release
 ```
 
-## Running:
+Running:
 
 ```sh
 ./target/release/remux
@@ -70,6 +54,8 @@ cargo build --release
 
 To learn all available commands for bind() 
 Lua and default configuration for Remux, check out - `init.lua` file
+
+
 
 
 License: MIT
