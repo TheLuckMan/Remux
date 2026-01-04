@@ -1,34 +1,15 @@
+use std::collections::HashMap;
 use bitflags::bitflags;
 use mlua::Lua;
-use crate::buffer::Buffer;
-use std::collections::HashMap;
-use crate::minibuffer::{MiniBuffer, MiniBufferMode, };
-use crate::command::{CommandRegistry, CommandContext };
-use crate::hooks::HookRegistry;
+use crate::{
+    command::{CommandRegistry, CommandContext},
+    minibuffer::{MiniBuffer, MiniBufferMode},
+    hooks::HookRegistry,
+    buffer::Buffer,
+};
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputMode {
-    Normal,
-    MiniBuffer,
-}
-
-
-pub enum EditorEvent {
-    ExecuteCommand(String),
-    Message(String),
-    OpenFile(String),
-    AddHook {
-        name: String,
-        func: mlua::RegistryKey,
-    },
-}
- 
-
-pub struct App {
-    pub lua: Lua,
-    pub editor: Editor,
-}
+// Editor.rs - это как должно это всё рендерится
+// Скроллинг
 
 pub struct Editor {
     pub buffer: Buffer,
@@ -39,34 +20,69 @@ pub struct Editor {
     pub mode: InputMode,
     pub should_quit: bool,
     pub event_queue: Vec<EditorEvent>,
+    pub wrap_mode: LineWrapMode,
     pub scroll_y: usize,
+    pub scroll_x: usize,
     pub viewport_height: usize,
+    pub viewport_width: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputMode {
+    Normal,
+    MiniBuffer,
+}
+
+// TODO: Снести это к херам, оно почти нихера не делает
+pub enum EditorEvent {
+    ExecuteCommand(String),
+    Message(String),
+    OpenFile(String),
+    AddHook {
+        name: String,
+        func: mlua::RegistryKey,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LineWrapMode {
+    Truncate,   // emacs: truncate-lines
+    Wrap,       // emacs: visual-line-mode
+}
+
+pub struct VisualLine {
+    pub buffer_y: usize,
+    pub start_x: usize,
+    pub len: usize,
 }
 
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct PhysicalModifiers: u8 {
-        const CTRL  = 0b0001;
-        const ALT   = 0b0010;
-        const SHIFT = 0b0100;
-        const SUPER = 0b1000;
+    pub struct PhysicalModifiers: u8
+    {
+	const CTRL = 0b0001;
+	const ALT = 0b0010;
+	const SHIFT = 0b0100;
+	const SUPER = 0b1000;
     }
 }
 
-pub struct KeyEvent {
-    pub modifier: Modifiers,
-    pub key: char,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Modifiers {
-    pub mod_key: bool,
+bitflags! {
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+    pub struct Modifiers: u8 {
+        const MOD = 0b0001; // user-defined mod
+    }
 }
 
 impl Modifiers {
     pub fn none() -> Self {
-        Self { mod_key: false }
+        Self::empty()
     }
+}
+
+pub struct KeyEvent {
+    pub physical: PhysicalModifiers,
+    pub key: char,
 }
 
 pub struct KeyMap {
@@ -80,13 +96,12 @@ impl KeyMap {
         }
     }
     pub fn bind(&mut self, mods: Modifiers, key: char, cmd: String) {
-	self.bindings.insert((mods, key), cmd);
+        self.bindings.insert((mods, key), cmd);
     }
 
     pub fn lookup(&self, mods: Modifiers, key: char) -> Option<&String> {
-	self.bindings.get(&(mods, key))
+        self.bindings.get(&(mods, key))
     }
-
 }
 
 impl Editor {
@@ -100,37 +115,46 @@ impl Editor {
 	    hooks: HookRegistry::new(),
             should_quit: false,
 	    mode: InputMode::Normal,
+	    wrap_mode: LineWrapMode::Wrap,
 	    scroll_y: 0,
+	    scroll_x: 0,
 	    viewport_height: 0,
+	    viewport_width: 0,
         }
     }
     fn process_events(&mut self, lua: &Lua) {
 	let events = std::mem::take(&mut self.event_queue);
-/*
-	if let MiniBufferMode::Message { ttl } = self.minibuffer.mode() {
-	    if ttl <= 1 {
-		self.minibuffer.clear();
-	    } else {
-		self.minibuffer.tick();
-	    }
-    }
-*/      self.minibuffer.tick();	
+	self.minibuffer.tick();	
 	for ev in events {
             match ev {
-		EditorEvent::ExecuteCommand(name) => {
-                    self.execute_named(&name, lua);
-		}
-		EditorEvent::Message(msg) => {
-                    self.minibuffer.message(&msg);
-		}
-		EditorEvent::OpenFile(path) => {
-                    let _ = self.buffer.open_file(path.into());
-		}
-		EditorEvent::AddHook { name, func } => {
-                    self.hooks.add_key(name, func);
-                }
+		EditorEvent::ExecuteCommand(name) => self.execute_named(&name, lua),
+		EditorEvent::Message(msg) => self.minibuffer.message(&msg),
+		EditorEvent::OpenFile(path) => { let _ = self.buffer.open_file(path.into()); }
+		EditorEvent::AddHook { name, func } => self.hooks.add_key(name, func),
             }
 	}
+    }
+    
+    pub fn scroll_indicator(&self) -> String {
+	let total = self.buffer.lines.len();
+	let vh = self.viewport_height;
+
+	if total <= vh {
+            return "All".to_string();
+	}
+
+	let max_scroll = total - vh;
+
+	if self.scroll_y == 0 {
+            return "Top".to_string();
+	}
+
+	if self.scroll_y >= max_scroll {
+            return "Bot".to_string();
+	}
+
+	let percent = self.scroll_y.saturating_mul(100) / max_scroll.max(1);
+	format!("{}%", percent)
     }
 
     
@@ -151,7 +175,7 @@ impl Editor {
             _ => "",
         }
     }
-
+    
     pub fn clamp_scroll(&mut self) {
 	let max = self.buffer.lines.len().saturating_sub(self.viewport_height);
 	self.scroll_y = self.scroll_y.min(max);
@@ -174,6 +198,60 @@ impl Editor {
         }
 
         self.clamp_scroll();
+    }
+
+      pub fn cursor_visual_pos(&self) -> (usize, usize) {
+        let width = self.viewport_width.max(1);
+        let mut vy = 0;
+
+        for y in 0..self.buffer.cursor_y {
+            let len = self.buffer.lines[y].chars().count().max(1);
+            match self.wrap_mode {
+                LineWrapMode::Truncate => vy += 1,
+                LineWrapMode::Wrap => vy += (len + width - 1) / width,
+            }
+        }
+
+        match self.wrap_mode {
+            LineWrapMode::Truncate => (self.buffer.cursor_x, vy),
+            LineWrapMode::Wrap => (
+                self.buffer.cursor_x % width,
+                vy + self.buffer.cursor_x / width,
+            ),
+        }
+    }
+
+    pub fn build_visual_lines(&self) -> Vec<VisualLine> {
+        let mut out = Vec::new();
+        let width = self.viewport_width.max(1);
+
+        for (y, line) in self.buffer.lines.iter().enumerate() {
+            let line_len = line.chars().count().max(1);
+
+            match self.wrap_mode {
+                LineWrapMode::Truncate => {
+                    out.push(VisualLine {
+                        buffer_y: y,
+                        start_x: self.scroll_x,
+                        len: width,
+                    });
+                }
+
+                LineWrapMode::Wrap => {
+                    let mut x = 0;
+                    while x < line_len {
+                        out.push(VisualLine {
+                            buffer_y: y,
+                            start_x: x,
+                            len: width,
+                        });
+                        x += width;
+                    }
+                }
+            }
+        }
+
+        out
     }
 
     pub fn scroll_up(&mut self) {

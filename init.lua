@@ -4,7 +4,7 @@
 -- Binding Mod-key
 -- Syntax:
 -- bind_mod("<Mod-key>")
--- Options for Mod: alt
+-- Options for Mod: alt | ctrl | super | shift (not recomended)
 
 bind_mod("alt")
 
@@ -23,6 +23,8 @@ bind("mod", "a", "move-beginning-of-line")
 bind("mod", "e", "move-end-of-line")
 bind("mod", "<", "move-beginning-of-buffer")
 bind("mod", ">", "move-end-of-buffer")
+bind("mod", "B", "move-word-left")
+bind("mod", "F", "move-word-right")
 
 --- 2. Scrolling
 bind("mod", "V", "scroll-down-command")
@@ -36,15 +38,27 @@ bind("mod", "l", "newline")
 bind("mod", "u", "undo")
 
 
---- 4. Selecting text, Cut, Copy, Paste
+--- 4. Selecting text, Cut, Copy, Paste, Killing
 bind("mod", "m", "set-mark-command")
 bind("mod", "y", "yank")
 bind("mod", "w", "kill-ring-save")
 bind("mod", "W", "kill-region")
+bind("mod", "k", "kill-word")
+bind("mod", "K", "kill-backward-word")
+bind("mod", "L", "kill-sentence")
 
 --- 5. Execute Remux Command and Kill Remux.
 bind("mod", "Q", "kill-remux")
+bind("mod", "c", "keyboard-quit")
 bind("mod", "x", "execute-command")
+bind("mod", "T", "toggle-line-wrap")
+
+-- Customization
+--- Border (true | false)
+
+add_hook("after-init", function(cmd)
+  set_buffer_borders(false)
+end)
 
 --[[
  Available Remux Commands for "execute-command" (mod+x):
@@ -80,5 +94,5 @@ end)
  Supported:
  "after-command", "before-command"
  Supported functions:
- message("<String>", 
+ message("<String>", cmd)
 --]]

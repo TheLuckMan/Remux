@@ -5,3 +5,4 @@ pub mod minibuffer;
 pub mod command;
 pub mod commands;
 pub mod hooks;
+pub mod status;

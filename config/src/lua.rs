@@ -4,13 +4,24 @@ use std::cell::RefCell;
 use remux_core::editor::{KeyMap, Editor, Modifiers, PhysicalModifiers, EditorEvent};
 use remux_core::config::{config_path, UserConfig};
 
+fn parse_modifiers(s: &str) -> Modifiers {
+    let mut mods = Modifiers::none();
 
+    for part in s.split('+') {
+        match part.trim().to_lowercase().as_str() {
+            "mod" => mods |= Modifiers::MOD,
+            _ => {}
+        }
+    }
+
+    mods
+}
 
 fn parse_mod_mask(s: &str) -> PhysicalModifiers {
     let mut mods = PhysicalModifiers::empty();
 
     for part in s.split('+') {
-        match part.to_lowercase().as_str() {
+        match part.trim().to_lowercase().as_str() {
             "ctrl" | "control" => mods |= PhysicalModifiers::CTRL,
             "alt"              => mods |= PhysicalModifiers::ALT,
             "shift"            => mods |= PhysicalModifiers::SHIFT,
@@ -22,20 +33,6 @@ fn parse_mod_mask(s: &str) -> PhysicalModifiers {
     mods
 }
 
- fn parse_modifiers(s: &str) -> Modifiers {
-    let mut mods = Modifiers::none();
-
-    for part in s.split('+') {
-        match part.trim().to_lowercase().as_str() {
-            "mod" => mods.mod_key = true,
-            _ => {
-	    }
-        }
-    }
-
-    mods
- }
-
 
 pub fn load_lua(
     lua: &Lua,
@@ -44,10 +41,9 @@ pub fn load_lua(
     lua_events: Rc<RefCell<Vec<EditorEvent>>>,
     config: Rc<RefCell<UserConfig>>,
 ) -> Result<()> {
- //   let editor_exec = editor.clone();
     let editor_hooks = editor.clone();
-    let config_rc = config.clone();
- //   let editor_msg = editor.clone();
+    let mod_config = config.clone();
+    let border_config = config.clone();
     let events = lua_events.clone();
     
     lua.globals().set(
@@ -63,7 +59,7 @@ pub fn load_lua(
 	"bind_mod",
 	lua.create_function(move |_, mods: String| {
             let mask = parse_mod_mask(&mods);
-            config_rc.borrow_mut().mod_mask = mask;
+            mod_config.borrow_mut().mod_mask = mask;
 	    Ok(())
 	})?,
     )?;
@@ -96,9 +92,19 @@ pub fn load_lua(
 	})?,
     )?;
 
+    lua.globals().set(
+	"set_buffer_borders",
+	lua.create_function(move |_, enabled: bool| {
+            border_config.borrow_mut().buffer_borders = enabled;
+            Ok(())
+	})?,
+    )?;
+
     let path = config_path();
     if path.exists() {
-        lua.load(std::fs::read_to_string(path)?).exec()?;
+	lua.load(std::fs::read_to_string(&path)?).exec()?;
+    } else {
+	println!("Configuration file not found! Ctrl-c to exit [copy 'init.lua' to '~/.config/remux/init.lua']");
     }
 
    Ok(())

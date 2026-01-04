@@ -4,12 +4,14 @@ use crate::editor::PhysicalModifiers;
 #[derive(Clone)]
 pub struct UserConfig {
     pub mod_mask: PhysicalModifiers,
+    pub buffer_borders: bool,
 }
 
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
             mod_mask: PhysicalModifiers::ALT,
+	    buffer_borders: false,
         }
     }
 }
