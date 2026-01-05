@@ -73,8 +73,10 @@ Running:
 ./target/release/remux test.txt
 ```
 
+## Note
 To learn all available commands for bind() 
 Lua and default configuration for Remux, check out - `init.lua` file
+**Please copy `init.lua` file to `~/.config/remux/` before running Remux!**
 
 ## Name
 
