@@ -1,27 +1,17 @@
 # Remux Editor
 
 ## About 
-A Re-designed (Or Rust), extensible UNIX text editor inspired by Emacs.
-(
-Emacs have 'CS' at end, I'm inspired UNIX name origins MULTICS -> UNICS -> UNIX
-So therefore my editor ending by 'X' (^_^)
-)
+Remux is a re-designed, extensible UNIX text editor inspired by Emacs,
+with a focus on ergonomics, extensibility, and memory safety.
 
-
-Remux - a minimalist memory-safety terminal text editor,
-Inspired by Emacs and focused on extensibility.
-
-The project is in the early stages of development (alpha).
-The API may change since the development!
+The project is in early alpha stage.
+The API is unstable and may change.
 
 # Freatures 
-- Editing text files
-- Moving the cursor
 - Mini-buffer in the style of Emacs
 - Calling teams through 'M-x'
-- ‘find-file’ - Opening files
-- 'save-buffer' - Preserving the current buffer
-- Lua configuration (keymap, commands)
+- Highly extensible via Lua configuration and plugins
+- Designed from scratch with modern constraints
 - TUI based on 'ratatui'/'crossterm'
 
 ## Architecture
@@ -30,7 +20,6 @@ The API may change since the development!
 - config - Lua, Hooks (Soon migrated into from core)
 - tui  - terminal frontend
 - gui  - graphical frontend (planned)
-- lua  - scripting / plugins (planned)
 
 ## Development
 
@@ -86,7 +75,11 @@ Running:
 To learn all available commands for bind() 
 Lua and default configuration for Remux, check out - `init.lua` file
 
+## Name
 
+The name "Remux" follows traditional UNIX naming conventions and is
+inspired by the historical origins of UNIX (MULTICS → UNICS → UNIX),
+as well as Emacs naming patterns.
 
 
 License: MIT
