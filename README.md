@@ -34,6 +34,37 @@ The API may change since the development!
 
 ## Development
 
+**Dependencies:**
+To build Remux from source, the following dependencies are required:
+- Rust-toolchain (Rustc, Cargo)
+- pkg-config
+- lua 5.4
+
+**Debian/Ubuntu**
+  ```sh
+  sudo apt install rustc cargo lua5.4 liblua5.4 pkg-config
+  ```
+**Arch**
+  ```sh
+  sudo pacman -S rust lua pkgconf
+  ```
+**Fedora**
+  ```sh
+  sudo dnf install rust cargo lua pkg-config
+  ```
+**Gentoo**
+  ```sh
+  emerge dev-lang/rust dev-lang/lua pkgconf
+  ```
+**Nix**
+  ```sh
+  nix-shell -p rustc cargo lua pkg-config
+  ```
+**FreeBSD**
+  ```sh
+  pkg install rust lua5.4 pkgconf
+  ```
+
 To build for develop: 
 
 ```sh
