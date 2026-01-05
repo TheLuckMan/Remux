@@ -30,7 +30,7 @@ To build Remux from source, the following dependencies are required:
 
 **Debian/Ubuntu**
   ```sh
-  sudo apt install rustc cargo lua5.4 liblua5.4 pkg-config
+  sudo apt install rustc cargo lua5.4 liblua5.4-dev pkg-config
   ```
 **Arch**
   ```sh
