@@ -1,6 +1,5 @@
 # Remux Editor
 
-## About 
 Remux is a re-designed, extensible UNIX text editor inspired by Emacs,
 with a focus on ergonomics, extensibility, and memory safety.
 
@@ -53,6 +52,8 @@ To build Remux from source, the following dependencies are required:
   ```sh
   pkg install rust lua5.4 pkgconf
   ```
+
+## Building
 
 To build for develop: 
 
