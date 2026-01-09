@@ -10,7 +10,7 @@ use remux_core::{
 
 use mlua::Lua;
 
-/// Конвертируем физические модификаторы клавиши
+/// Convetring
 pub fn physical_from_key_event(key: &KeyEvent) -> PhysicalModifiers {
     let mut mods = PhysicalModifiers::empty();
     if key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -28,7 +28,6 @@ pub fn physical_from_key_event(key: &KeyEvent) -> PhysicalModifiers {
     mods
 }
 
-/// Конвертируем физические модификаторы в логические (учёт префиксных клавиш)
 pub fn logical_modifiers(
     physical: PhysicalModifiers,
     key: KeyCode,
@@ -38,7 +37,7 @@ pub fn logical_modifiers(
     let mut mods = Modifiers::empty();
 
     for i in 0..3 {
-        // Префиксные клавиши
+        // prefix
         if let Some(pk) = config.prefix_keys[i] {
             if let KeyCode::Char(c) = key {
                 if c == pk && physical.intersects(config.prefix_masks[i]) {
@@ -48,7 +47,6 @@ pub fn logical_modifiers(
             }
         }
 
-        // Обычные модификаторы
         if physical.intersects(config.mod_masks[i]) {
             mods.insert(Modifiers::from_bits_truncate(1 << i));
         }
@@ -61,8 +59,6 @@ pub fn logical_modifiers(
 
     mods
 }
-
-/// Обработка одного события ввода
 pub fn handle_input(
     lua: &Lua,
     editor: &Rc<RefCell<Editor>>,
@@ -84,8 +80,7 @@ pub fn handle_input(
 
     Ok(())
 }
-
-/// Обработка Normal Mode
+// Normal mode
 fn handle_normal_input(
     lua: &Lua,
     editor: &Rc<RefCell<Editor>>,
@@ -97,7 +92,7 @@ fn handle_normal_input(
     let mut ed = editor.borrow_mut();
     let mods = logical_modifiers(physical, key.code, &user_config.borrow(), &mut ed);
 
-    // Ctrl-c для выхода
+    // Ctrl-c for exit
     if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
         ed.should_quit = true;
         return Ok(());
@@ -126,7 +121,7 @@ fn handle_normal_input(
     Ok(())
 }
 
-/// Обработка MiniBuffer Mode
+/// MiniBuffer Mode
 fn handle_minibuffer_input(
     lua: &Lua,
     editor: &Rc<RefCell<Editor>>,
