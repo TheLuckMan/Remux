@@ -1,9 +1,23 @@
+use std::sync::Arc;
 use std::collections::HashMap;
 use crate::editor::Editor;
 
+pub enum CommandArg {
+    None,
+    Int(i64),
+    Str(String),
+}
+
+pub enum Interactive {
+    None,
+    Int,
+    Str { prompt: &'static str },
+}
+
 pub struct CommandContext<'a> {
     pub editor: &'a mut Editor,
-    pub arg: Option<&'a str>,
+    pub arg: CommandArg,
+    
 }
 
 pub enum EditorEvent<'a> {
@@ -15,11 +29,21 @@ pub enum EditorEvent<'a> {
 
 pub struct Command {
     pub name: &'static str,
+    pub interactive: Interactive,
     pub run: fn(CommandContext),
 }
 
 pub struct CommandRegistry {
-    commands: HashMap<String, Command>,
+    commands: HashMap<String, Arc<Command>>,
+}
+
+impl Command {
+    pub fn interactive_string_prompt(&self) -> Option<&'static str> {
+        match self.interactive {
+            Interactive::Str { prompt } => Some(prompt),
+            _ => None,
+        }
+    }
 }
 
 impl CommandRegistry {
@@ -29,12 +53,12 @@ impl CommandRegistry {
         }
     }
     
-    pub fn register(&mut self, cmd: Command) {
+    pub fn register(&mut self, cmd: Arc<Command>) {
         self.commands.insert(cmd.name.to_string(), cmd);
     }
 
-    pub fn get(&self, name: &str) -> Option<&Command> {
-        self.commands.get(name)
+    pub fn get(&self, name: &str) -> Option<Arc<Command>> {
+        self.commands.get(name).cloned()
     }
 
     pub fn names(&self) -> impl Iterator<Item = &String> {

@@ -2,8 +2,9 @@
 pub enum MiniBufferMode {
     Inactive,
     Command,    // M-x
-    FindFile,   // ожидание пути
-    Message { ttl: u8 },    // просто сообщение
+    FindFile,   // waiting path
+    SaveBuffer,
+    Message { ttl: u8 },    // just a message
 }
 
 pub struct MiniBuffer {

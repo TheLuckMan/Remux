@@ -4,35 +4,46 @@ use std::cell::RefCell;
 use remux_core::editor::{KeyMap, Editor, Modifiers, PhysicalModifiers, EditorEvent};
 use remux_core::config::{config_path, UserConfig};
 
-fn parse_modifiers(s: &str) -> Modifiers {
-    let mut mods = Modifiers::none();
+
+pub fn parse_modifiers(s: &str) -> Modifiers {
+    let mut mods = Modifiers::empty();
 
     for part in s.split('+') {
-        match part.trim().to_lowercase().as_str() {
-            "mod" => mods |= Modifiers::MOD,
-            _ => {}
+        let idx = match part.trim().to_lowercase().as_str() {
+            "mod0" => Some(0),
+            "mod1" => Some(1),
+            "mod2" => Some(2),
+            _ => None,
+        };
+
+        if let Some(i) = idx {
+            mods.insert(Modifiers::from_bits_truncate(1 << i));
         }
     }
 
     mods
 }
 
-fn parse_mod_mask(s: &str) -> PhysicalModifiers {
-    let mut mods = PhysicalModifiers::empty();
+
+pub fn parse_mod_mask(s: &str) -> (PhysicalModifiers, Option<char>) {
+    let mut phys = PhysicalModifiers::empty();
+    let mut key = None;
 
     for part in s.split('+') {
         match part.trim().to_lowercase().as_str() {
-            "ctrl" | "control" => mods |= PhysicalModifiers::CTRL,
-            "alt"              => mods |= PhysicalModifiers::ALT,
-            "shift"            => mods |= PhysicalModifiers::SHIFT,
-            "super" | "meta"   => mods |= PhysicalModifiers::SUPER,
+            "ctrl" | "control" => phys |= PhysicalModifiers::CTRL,
+            "alt"              => phys |= PhysicalModifiers::ALT,
+            "shift"            => phys |= PhysicalModifiers::SHIFT,
+            "super" | "meta"   => phys |= PhysicalModifiers::SUPER,
+            s if s.len() == 1  => {
+                key = Some(s.chars().next().unwrap());
+            }
             _ => {}
         }
     }
 
-    mods
+    (phys, key)
 }
-
 
 pub fn load_lua(
     lua: &Lua,
@@ -42,7 +53,6 @@ pub fn load_lua(
     config: Rc<RefCell<UserConfig>>,
 ) -> Result<()> {
     let editor_hooks = editor.clone();
-    let mod_config = config.clone();
     let border_config = config.clone();
     let events = lua_events.clone();
     
@@ -55,14 +65,37 @@ pub fn load_lua(
             Ok(())
 	})?,
     )?;
-    lua.globals().set(
-	"bind_mod",
-	lua.create_function(move |_, mods: String| {
-            let mask = parse_mod_mask(&mods);
-            mod_config.borrow_mut().mod_mask = mask;
-	    Ok(())
-	})?,
-    )?;
+    
+   lua.globals().set(
+    "bind_mod",
+    lua.create_function(move |_, (n, combo): (usize, String)| {
+        if n >= 3 {
+            return Err(mlua::Error::RuntimeError(
+                "bind_mod: MOD index out of range".into(),
+            ));
+        }
+
+        let (phys, key) = parse_mod_mask(&combo);
+        let mut cfg = config.borrow_mut();
+
+        match key {
+            Some(c) => {
+                cfg.prefix_keys[n]  = Some(c);
+                cfg.prefix_masks[n] = phys;
+                cfg.mod_masks[n]    = PhysicalModifiers::empty();
+            }
+            None => {
+                cfg.prefix_keys[n]  = None;
+                cfg.prefix_masks[n] = PhysicalModifiers::empty();
+                cfg.mod_masks[n]    = phys;
+            }
+        }
+
+        Ok(())
+    })?,
+)?;
+
+    
     lua.globals().set(
 	"execute",
 	lua.create_function(move |_, name: String| {

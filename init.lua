@@ -3,10 +3,12 @@
 
 -- Binding Mod-key
 -- Syntax:
--- bind_mod("<Mod-key>")
+-- bind_mod(<number>,"<Mod-key>")
 -- Options for Mod: alt | ctrl | super | shift (not recomended)
 
-bind_mod("alt")
+bind_mod(0, "ctrl")
+bind_mod(1, "alt")
+bind_mod(2, "ctrl+x")
 
 -- Keybinds
 -- Syntax:
@@ -15,43 +17,59 @@ bind_mod("alt")
 -- [ A = Shift+a ]
 
 --- 1. Moving
-bind("mod", "b", "move-left")
-bind("mod", "f", "move-right")
-bind("mod", "p", "move-up")
-bind("mod", "n", "move-down")
-bind("mod", "a", "move-beginning-of-line")
-bind("mod", "e", "move-end-of-line")
-bind("mod", "<", "move-beginning-of-buffer")
-bind("mod", ">", "move-end-of-buffer")
-bind("mod", "B", "move-word-left")
-bind("mod", "F", "move-word-right")
+bind("mod0", "b", "move-left")
+bind("mod0", "f", "move-right")
+bind("mod0", "p", "move-up")
+bind("mod0", "n", "move-down")
+bind("mod0", "a", "move-beginning-of-line")
+bind("mod0", "e", "move-end-of-line")
+bind("mod2", "[", "move-beginning-of-buffer")
+bind("mod2", "]", "move-end-of-buffer")
+bind("mod1", "b", "move-word-left")
+bind("mod1", "f", "move-word-right")
 
 --- 2. Scrolling
-bind("mod", "V", "scroll-down-command")
-bind("mod", "v", "scroll-up-command")
-
+bind("mod1", "V", "scroll-down-command")
+bind("mod1", "v", "scroll-up-command")
+-- bind("mod1", "B", "scroll-left-command")
+-- bind("mod1", "b", "scroll-right-command")
 
 --- 3. Text edit 
-bind("mod", "d", "backward-delete-char")
-bind("mod", "D", "delete-char")
-bind("mod", "l", "newline")
-bind("mod", "u", "undo")
+bind("mod0", "d", "backward-delete-char")
+bind("mod1", "d", "delete-char")
+bind("mod0", "l", "newline")
+bind("mod0", "z", "undo")
 
 
 --- 4. Selecting text, Cut, Copy, Paste, Killing
-bind("mod", "m", "set-mark-command")
-bind("mod", "y", "yank")
-bind("mod", "w", "kill-ring-save")
-bind("mod", "W", "kill-region")
-bind("mod", "k", "kill-word")
-bind("mod", "K", "kill-backward-word")
-bind("mod", "L", "kill-sentence")
+bind("mod0", " ", "set-mark-command")
+bind("mod0", "y", "yank")
+bind("mod1", "w", "kill-ring-save")
+bind("mod0", "w", "kill-region")
+bind("mod0", "k", "kill-word")
+bind("mod0", "K", "kill-backward-word")
+bind("mod1", "k", "kill-sentence")
 
---- 5. Execute Remux Command and Kill Remux.
-bind("mod", "Q", "kill-remux")
-bind("mod", "c", "keyboard-quit")
-bind("mod", "x", "execute-command")
-bind("mod", "T", "toggle-line-wrap")
+--- 5. Digital arguments.
+bind("mod1", "1", "digit-argument-1")
+bind("mod1", "2", "digit-argument-2")
+bind("mod1", "3", "digit-argument-3")
+bind("mod1", "4", "digit-argument-4")
+bind("mod1", "5", "digit-argument-5")
+bind("mod1", "6", "digit-argument-6")
+bind("mod1", "7", "digit-argument-7")
+bind("mod1", "8", "digit-argument-8")
+bind("mod1", "9", "digit-argument-9")
+
+
+--- 6. Execute Remux Command and Kill Remux.
+bind("mod0", "u", "universal-argument")
+bind("mod2", "c", "kill-remux")
+bind("mod0", "g", "keyboard-quit")
+
+bind("mod1", "x", "execute-command")
+bind("mod2", "f", "find-file")
+bind("mod1", "T", "toggle-line-wrap")
 
 -- Customization
 --- Border (true | false)
@@ -61,28 +79,19 @@ add_hook("after-init", function(cmd)
 end)
 
 --[[
- Available Remux Commands for "execute-command" (mod+x):
+ Also Available Remux Commands for "execute-command" (mod+x):
  find-file | Open file
  save-buffer | Save file (buffer)
+ save-buffer-as | Save file as <Enter> Name
  kill-remux | Quit (Kill Remux)
- move-left
- move-right
- move-up
- move-down
- move-beginning-of-line
- move-end-of-line
- move-beginning-of-buffer
- move-end-of-buffer
- scroll-down-command
- scroll-up-command
- backward-delete-char
- delete-char
- newline
- undo
- set-mark-command
- yank
- kill-ring-save
- kill-region
+
+ Also there is "universal-command" -
+ C-u C-f - moves cursor 4 characters forward
+ C-u C-u C-f - Moves cursor 4*4 characters forward
+ C-u C-u C-u C-u C-u C-f - Moves cursor 4*4*4*4*4 characters forward
+ M-5 C-u C-f - Moves Cursor 5*4 Characters forward
+ M-3 C-u C-u C-f - Moves Cursor 3*4*4 Characters forward
+ I will exetend this command in future updates
 
  Available Hooks (Only for the testing!):
 
@@ -92,7 +101,7 @@ end)
 end)
 
  Supported:
- "after-command", "before-command"
+ "after-command", "before-command", "after-init"
  Supported functions:
  message("<String>", cmd)
 --]]
