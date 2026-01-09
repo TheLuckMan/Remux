@@ -8,7 +8,6 @@ use ratatui::{
 
 use remux_core::editor::{Editor, VisualLine};
 
-/// Главная функция рендера buffer
 pub fn render_buffer(
     f: &mut Frame,
     editor: &mut Editor,
