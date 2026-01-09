@@ -47,7 +47,7 @@ pub struct App {
 }
 
 impl App {
-    /// Инициализация TUI + Editor
+    /// Init TUI + Editor
     pub fn init(
 	args: &[String],
 	registry: CommandRegistry,
@@ -61,14 +61,12 @@ impl App {
 	let terminal = Terminal::new(backend)?;
 	let lua_events: Rc<RefCell<Vec<remux_core::editor::EditorEvent>>> = Rc::new(RefCell::new(Vec::new()));
 
-	// создаём один KeyMap
 	let keymap = Rc::new(RefCell::new(KeyMap::new()));
 	let editor = Rc::new(RefCell::new(Editor::new(registry, keymap.clone())));
 	let user_config = Rc::new(RefCell::new(UserConfig::default()));
 
 	let lua = Lua::new();
 
-	// Lua теперь работает с тем же keymap, что и editor
 	load_lua(
 	    &lua,
 	    editor.clone(),
@@ -94,8 +92,6 @@ impl App {
 	})
     }
 
-
-    /// Главный event loop
     pub fn run(&mut self) -> io::Result<()> {
         while !self.editor.borrow().should_quit {
             self.tick()?;
