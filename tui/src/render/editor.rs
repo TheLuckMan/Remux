@@ -13,7 +13,6 @@ use crate::render::{
     minibuffer::render_minibuffer,
 };
 
-/// Главная точка рендера Editor
 pub fn render_editor(
     f: &mut Frame,
     editor: &mut Editor,
