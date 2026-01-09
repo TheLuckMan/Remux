@@ -6,7 +6,6 @@ use ratatui::{
 };
 use remux_core::editor::Editor;
 
-/// Рендер минибуфера
 pub fn render_minibuffer(f: &mut Frame, editor: &Editor, area: Rect) {
     let content = editor.minibuffer.get();
 
