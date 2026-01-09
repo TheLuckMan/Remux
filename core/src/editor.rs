@@ -310,7 +310,7 @@ impl Editor {
     }
 
     pub fn execute_minibuffer(&mut self, lua: &Lua) {
-	let mode = self.minibuffer.mode(); // сохраняем сразу
+	let mode = self.minibuffer.mode();
 	let input = match mode {
             MiniBufferMode::Command => self.minibuffer.get().strip_prefix("M-x ").unwrap_or("").trim(),
             MiniBufferMode::FindFile => self.minibuffer.get().strip_prefix("Find file: ").unwrap_or("").trim(),
@@ -321,7 +321,7 @@ impl Editor {
 	self.minibuffer.deactivate();
 	self.mode = InputMode::Normal;
 
-	match mode { // используем сохранённый
+	match mode { 
             MiniBufferMode::FindFile => {
 		match self.buffer.open_file(input.into()) {
                     Ok(_) => self.minibuffer.message("Opened file"),
