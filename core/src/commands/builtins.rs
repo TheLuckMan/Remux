@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use crate::command::{Command, CommandRegistry, CommandContext, CommandArg, Interactive};
 use crate::minibuffer::MiniBufferMode;
-use crate::editor::{InputMode, LineWrapMode, PrefixState};
+use crate::editor::editor::{InputMode, LineWrapMode, PrefixState};
 use crate::buffer::Motion;
 
 fn digit_argument(ctx: CommandContext, digit: i32) {

@@ -1,6 +1,6 @@
 [package]
 name = "remux-tui"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 license = "MIT"
 
@@ -10,3 +10,4 @@ remux-config = { path = "../config" }
 mlua = { version = "0.9", features = ["lua54"] }
 crossterm = "0.27"
 ratatui = "0.26"
+unicode-width = "0.1"

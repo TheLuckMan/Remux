@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind, KeyCode, KeyModifiers};
 use remux_core::{
-    editor::{Editor, InputMode, PhysicalModifiers, Modifiers, KeyMap},
+    editor::editor::{Editor, InputMode, PhysicalModifiers, Modifiers, KeyMap},
     buffer::Motion,
     config::UserConfig,
 };
@@ -103,7 +103,7 @@ fn handle_normal_input(
             if let Some(cmd) = keymap.borrow().lookup(mods, c) {
                 ed.execute_named(&cmd, lua);
             } else if mods.is_empty() {
-                ed.buffer.insert_char(c);
+                ed.insert_char(lua, c);
             }
         }
         KeyCode::Left => ed.buffer.move_cursor(Motion::Left),

@@ -1,4 +1,4 @@
-use crate::editor::Editor;
+use crate::editor::editor::Editor;
 
 #[derive(Debug, Clone)]
 pub struct StatusInfo {
@@ -10,7 +10,7 @@ pub struct StatusInfo {
     pub scroll_percent: String,
 }
 
-pub fn build_status(editor: &Editor) -> StatusInfo {
+pub fn build_status(editor: &mut Editor) -> StatusInfo {
     let buffer = &editor.buffer;
 
     StatusInfo {

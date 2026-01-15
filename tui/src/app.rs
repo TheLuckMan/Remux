@@ -24,7 +24,7 @@ use ratatui::{
 use mlua::Lua;
 
 use remux_core::{
-    editor::{Editor, KeyMap},
+    editor::editor::{Editor, KeyMap},
     config::UserConfig,
     command::CommandRegistry,
 };
@@ -42,6 +42,7 @@ pub struct App {
     terminal: Terminal<CrosstermBackend<std::io::Stdout>>,
     pub editor: Rc<RefCell<Editor>>,
     lua: Lua,
+    pub lua_events: Rc<RefCell<Vec<remux_core::editor::editor::EditorEvent>>>,
     pub keymap: Rc<RefCell<KeyMap>>,
     pub user_config: Rc<RefCell<UserConfig>>,
 }
@@ -59,13 +60,13 @@ impl App {
 
 	let backend = CrosstermBackend::new(stdout);
 	let terminal = Terminal::new(backend)?;
-	let lua_events: Rc<RefCell<Vec<remux_core::editor::EditorEvent>>> = Rc::new(RefCell::new(Vec::new()));
-
-	let keymap = Rc::new(RefCell::new(KeyMap::new()));
-	let editor = Rc::new(RefCell::new(Editor::new(registry, keymap.clone())));
-	let user_config = Rc::new(RefCell::new(UserConfig::default()));
-
 	let lua = Lua::new();
+	let lua_events: Rc<RefCell<Vec<remux_core::editor::editor::EditorEvent>>> = Rc::new(RefCell::new(Vec::new()));
+	let keymap = Rc::new(RefCell::new(KeyMap::new()));
+	let user_config = Rc::new(RefCell::new(UserConfig::default()));
+	let editor = Rc::new(RefCell::new(Editor::new(registry, keymap.clone(), user_config.clone())));
+
+
 
 	load_lua(
 	    &lua,
@@ -75,6 +76,8 @@ impl App {
 	    user_config.clone(),
 	).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
+	editor.borrow_mut().process_events(&lua);
+	
 	// открыть файл из argv
 	if args.len() > 1 {
             let path = args[1].clone();
@@ -87,6 +90,7 @@ impl App {
             terminal,
             editor,
             lua,
+	    lua_events,
             keymap,
             user_config,
 	})
@@ -100,20 +104,18 @@ impl App {
     }
 
     fn tick(&mut self) -> io::Result<()> {
-        // input
-        if event::poll(Duration::from_millis(250))? {
-           handle_input(&self.lua, &self.editor, &self.keymap, &self.user_config)?;
+	if event::poll(Duration::from_millis(250))? {
+            handle_input(&self.lua, &self.editor, &self.keymap, &self.user_config)?;
+	}
 
-        }
+	{
+            let mut ed = self.editor.borrow_mut();
+            let mut lua_events = self.lua_events.borrow_mut();
+            ed.event_queue.extend(lua_events.drain(..));
+            ed.process_events(&self.lua);
+	}
 
-        // hooks / background
-        self.editor
-            .borrow_mut()
-            .hooks
-            .run(&self.lua, "after-init", "");
-
-        // render
-        self.draw()
+	self.draw()
     }
 
     fn draw(&mut self) -> io::Result<()> {
@@ -121,7 +123,7 @@ impl App {
 
         self.terminal.draw(|f| {
             let mut ed = editor.borrow_mut();
-            render_editor(f, &mut ed);
+            render_editor(f, &mut ed, &self.lua);
         })?;
 
         Ok(())

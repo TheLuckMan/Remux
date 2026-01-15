@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use crate::editor::PhysicalModifiers;
+use crate::editor::editor::PhysicalModifiers;
 
 #[derive(Clone)]
 pub struct UserConfig {

@@ -1,5 +1,7 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use mlua::Lua;
+use crate::editor::hooks::HookRegistry;
 
 #[derive(Debug, Clone)]
 pub enum UndoAction {
@@ -63,7 +65,13 @@ impl Buffer {
     }
 
     fn char_to_byte_idx(s: &str, char_idx: usize) -> usize {
-        s.char_indices().nth(char_idx).map(|(i, _)| i).unwrap_or(s.len())
+	if char_idx == 0 {
+            return 0;
+	}
+	s.char_indices()
+            .nth(char_idx)
+            .map(|(i, _)| i)
+            .unwrap_or_else(|| s.len())
     }
 
     fn push_undo(&mut self, action: UndoAction) {
@@ -113,9 +121,29 @@ impl Buffer {
         self.cursor_x = x + text.chars().count();
         self.cursor_y = y;
     }
+    
+    pub fn insert_char_raw(&mut self, ch: char) {
+	let line = &mut self.lines[self.cursor_y];
+	let byte_idx = Self::char_to_byte_idx(line, self.cursor_x);
+	line.insert(byte_idx, ch);
+	self.cursor_x += 1;
+    }
 
-    pub fn insert_char(&mut self, ch: char) {
-        self.insert_text_at(self.cursor_x, self.cursor_y, &ch.to_string());
+    pub fn insert_char(
+        &mut self,
+        ch: char,
+        lua: Option<&Lua>,
+        hooks: Option<&HookRegistry>,
+    ) {
+        if let (Some(lua), Some(hooks)) = (lua, hooks) {
+            hooks.run(lua, "before-insert", &ch.to_string());
+        }
+
+        self.insert_char_raw(ch);
+
+        if let (Some(lua), Some(hooks)) = (lua, hooks) {
+            hooks.run(lua, "after-insert", &ch.to_string());
+        }
     }
 
     pub fn insert_newline(&mut self) {
@@ -186,16 +214,21 @@ impl Buffer {
         Some(self.delete_range(x, y, x + 1, y))
     }
 
-    fn delete_backward_char(&mut self) -> Option<String> {
-        if self.cursor_x == 0 {
-            return None;
-        }
-
-        let y = self.cursor_y;
-        let x = self.cursor_x;
-
-        Some(self.delete_range(x - 1, y, x, y))
+   fn delete_backward_char(&mut self) -> Option<String> {
+    let y = self.cursor_y;
+    let x = self.cursor_x;
+    if x == 0 && y == 0 {
+        return None;
     }
+    if x > 0 {
+        return Some(self.delete_range(x - 1, y, x, y));
+    }
+    let prev_y = y - 1;
+    let prev_len = self.lines[prev_y].chars().count();
+
+    Some(self.delete_range(prev_len, prev_y, 0, y))
+}
+
 
     pub fn move_cursor(&mut self, motion: Motion) {
         match motion {
@@ -376,12 +409,35 @@ impl Buffer {
         let x = self.cursor_x;
         for (i, line) in text.split('\n').enumerate() {
             if i != 0 { self.insert_newline() }
-            for ch in line.chars() { self.insert_char(ch) }
+            for ch in line.chars() { self.insert_char_raw(ch) }
         }
         self.push_undo(UndoAction::Insert { x, y, text: text.to_string() });
     }
 
+
+    pub fn expand_tilde<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
+	let path = path.as_ref();
+
+	let s = match path.to_str() {
+            Some(s) => s,
+            None => return path.to_path_buf(),
+	};
+
+	if s == "~" || s.starts_with("~/") {
+            if let Some(home) = std::env::var_os("HOME") {
+		if s.len() == 1 {
+                    return PathBuf::from(home);
+		} else {
+                    return PathBuf::from(home).join(&s[2..]);
+		}
+            }
+	}
+
+	path.to_path_buf()
+    }
+
     pub fn open_file(&mut self, path: PathBuf) -> io::Result<()> {
+	let path = self.expand_tilde(path);
         if !path.exists() { self.lines = vec![String::new()]; self.file_path = Some(path); self.cursor_x = 0; self.cursor_y = 0; return Ok(()) }
         let content = std::fs::read_to_string(&path)?;
         self.lines = content.lines().map(|s| s.to_string()).collect();

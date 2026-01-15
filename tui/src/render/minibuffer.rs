@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Paragraph, Block, Borders},
     style::{Style, Color},
 };
-use remux_core::editor::Editor;
+use remux_core::editor::editor::Editor;
 
 pub fn render_minibuffer(f: &mut Frame, editor: &Editor, area: Rect) {
     let content = editor.minibuffer.get();

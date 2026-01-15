@@ -92,16 +92,4 @@ end)
  M-5 C-u C-f - Moves Cursor 5*4 Characters forward
  M-3 C-u C-u C-f - Moves Cursor 3*4*4 Characters forward
  I will exetend this command in future updates
-
- Available Hooks (Only for the testing!):
-
- Example:
- add_hook("after-command", function(cmd)
-  message("Executed:", cmd)
-end)
-
- Supported:
- "after-command", "before-command", "after-init"
- Supported functions:
- message("<String>", cmd)
 --]]

@@ -1,7 +1,7 @@
 use mlua::{Result, Lua};
 use std::rc::Rc;
 use std::cell::RefCell;
-use remux_core::editor::{KeyMap, Editor, Modifiers, PhysicalModifiers, EditorEvent};
+use remux_core::editor::editor::{KeyMap, Editor, Modifiers, PhysicalModifiers, EditorEvent};
 use remux_core::config::{config_path, UserConfig};
 
 
@@ -108,10 +108,7 @@ pub fn load_lua(
     lua.globals().set(
 	"add_hook",
 	lua.create_function(move |lua, (name, func): (String, mlua::Function)| {
-	    let key = lua.create_registry_value(func)?;
-	    editor_hooks.borrow_mut()
-		.event_queue
-		.push(EditorEvent::AddHook { name, func: key });
+            editor_hooks.borrow_mut().hooks.add(lua, &name, func)?;
             Ok(())
 	})?,
     )?;
@@ -120,7 +117,7 @@ pub fn load_lua(
     lua.globals().set(
 	"message",
 	lua.create_function(move |_, msg: String| {
-	    events.borrow_mut().push(EditorEvent::Message(msg));
+    	    events.borrow_mut().push(EditorEvent::Message(msg));
             Ok(())
 	})?,
     )?;

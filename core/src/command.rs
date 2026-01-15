@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::collections::HashMap;
-use crate::editor::Editor;
+use crate::editor::editor::Editor;
 
 pub enum CommandArg {
     None,

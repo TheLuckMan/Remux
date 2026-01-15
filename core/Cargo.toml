@@ -1,10 +1,11 @@
 [package]
 name = "remux-core"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]
 bitflags = "2.4"
 crossterm = "0.27"
 mlua = { version = "0.9", features = ["lua54"] }
+unicode-width = "0.1"
 dirs = "5"
