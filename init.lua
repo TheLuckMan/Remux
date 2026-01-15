@@ -74,7 +74,7 @@ bind("mod1", "T", "toggle-line-wrap")
 -- Customization
 --- Border (true | false)
 
-add_hook("after-init", function(cmd)
+add_hook("after-init-once", function(cmd)
   set_buffer_borders(false)
 end)
 
