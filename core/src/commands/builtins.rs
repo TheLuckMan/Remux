@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use crate::command::{Command, CommandRegistry, CommandContext, CommandArg, Interactive};
 use crate::minibuffer::MiniBufferMode;
-use crate::editor::editor::{InputMode, LineWrapMode, PrefixState};
+use crate::editor::editor::{InputMode, PrefixState, ScrollIntent, ISearchDir};
+use crate::editor::layout::LineWrapMode;
 use crate::buffer::Motion;
 
 fn digit_argument(ctx: CommandContext, digit: i32) {
@@ -70,17 +71,24 @@ fn move_cursor_command(ctx: CommandContext, motion: Motion) {
     for _ in 0..n {
         ctx.editor.buffer.move_cursor(motion);
     }
+    ctx.editor.scroll_intent = ScrollIntent::FollowCursor;
 }
 
 fn keyboard_quit(ctx: CommandContext) {
+    if ctx.editor.isearch.is_some() {
+        ctx.editor.isearch_abort();
+        ctx.editor.minibuffer.message("Quit");
+        return;
+    }
+
     if ctx.editor.minibuffer.is_active() {
-        ctx.editor.minibuffer.deactivate(); 
+        ctx.editor.minibuffer.deactivate();
         ctx.editor.mode = InputMode::Normal;
         ctx.editor.minibuffer.message("Quit");
-    } else {
-	ctx.editor.buffer.clear_mark();
-	// Cancel search
+        return;
     }
+
+    ctx.editor.buffer.clear_mark();
 }
 
 pub fn register_builtins(reg: &mut CommandRegistry) {
@@ -107,7 +115,7 @@ pub fn register_builtins(reg: &mut CommandRegistry) {
     reg.register(Arc::new(Command { name: "delete-char", interactive: Interactive::None, run: |ctx| { ctx.editor.buffer.delete(Motion::Right); ctx.editor.ensure_cursor_visible(); } }));
     reg.register(Arc::new(Command { name: "backward-delete-char", interactive: Interactive::None, run: |ctx| { ctx.editor.buffer.delete(Motion::Left); ctx.editor.ensure_cursor_visible(); } }));
     reg.register(Arc::new(Command { name: "set-mark-command", interactive: Interactive::None, run: |ctx| { ctx.editor.buffer.toggle_mark(); } }));
-    reg.register(Arc::new(Command { name: "newline", interactive: Interactive::None, run: |ctx| { ctx.editor.buffer.insert_newline(); ctx.editor.ensure_cursor_visible(); } }));
+    reg.register(Arc::new(Command { name: "newline", interactive: Interactive::None, run: |ctx| { ctx.editor.insert_newline(); ctx.editor.ensure_cursor_visible(); } }));
 
     // ===============================
     // Killing/copying/yanking
@@ -118,19 +126,19 @@ pub fn register_builtins(reg: &mut CommandRegistry) {
 	run: |ctx| run_kill(ctx, |b| b.kill_word()),
     }));
 
-     reg.register(Arc::new(Command {
+    reg.register(Arc::new(Command {
 	name: "kill-backward-word",
 	interactive: Interactive::None,
 	run: |ctx| run_kill(ctx, |b| b.kill_backward_word()),
     }));
 
-     reg.register(Arc::new(Command {
+    reg.register(Arc::new(Command {
 	name: "kill-sentence",
 	interactive: Interactive::None,
 	run: |ctx| run_kill(ctx, |b| b.kill_sentence()),
     }));
 
-     reg.register(Arc::new(Command {
+    reg.register(Arc::new(Command {
 	name: "kill-region",
 	interactive: Interactive::None,
 	run: |ctx| run_kill(ctx, |b| b.kill_region()),
@@ -216,7 +224,34 @@ pub fn register_builtins(reg: &mut CommandRegistry) {
 	}
     }));
 
+    reg.register(Arc::new(Command {
+	name: "goto-line",
+	interactive: Interactive::Str { prompt: "Goto line: " },
+	run: |ctx| {
+	    ctx.editor.mode = InputMode::MiniBuffer;
+	    ctx.editor.minibuffer.activate("Goto line: ", MiniBufferMode::GotoLine);
+	},
+    }));
+    
+    // =============================
+    // Searching text
+    // =============================
+    reg.register(Arc::new(Command {
+	name: "isearch-forward",
+	interactive: Interactive::None,
+	run: |ctx| {
+            ctx.editor.isearch_start(ISearchDir::Forward);
+	},
+    }));
 
+    reg.register(Arc::new(Command {
+	name: "isearch-backward",
+	interactive: Interactive::None,
+	run: |ctx| {
+            ctx.editor.isearch_start(ISearchDir::Backward);
+	},
+    }));
+    
     // ===============================
     // Toggle features
     // ===============================
@@ -292,8 +327,8 @@ pub fn register_builtins(reg: &mut CommandRegistry) {
     // ===============================
     // Scrolling commands
     // ===============================
-    reg.register(Arc::new(Command { name: "scroll-up-command", interactive: Interactive::None, run: |ctx| ctx.editor.scroll_up() }));
-    reg.register(Arc::new(Command { name: "scroll-down-command", interactive: Interactive::None, run: |ctx| ctx.editor.scroll_down() }));
+    reg.register(Arc::new(Command { name: "scroll-up-command", interactive: Interactive::None, run: |ctx| ctx.editor.scroll_up_command() }));
+    reg.register(Arc::new(Command { name: "scroll-down-command", interactive: Interactive::None, run: |ctx| ctx.editor.scroll_down_command() }));
     reg.register(Arc::new(Command { name: "scroll-left-command", interactive: Interactive::None, run: |ctx| ctx.editor.scroll_left() }));
     reg.register(Arc::new(Command { name: "scroll-right-command", interactive: Interactive::None, run: |ctx| ctx.editor.scroll_right() }));
 

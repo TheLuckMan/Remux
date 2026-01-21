@@ -22,7 +22,7 @@ end)
 
 ---
 
-## Available hooks (v0.5.0)
+## Available hooks (v0.6.0)
 
 ### Lifecycle hooks
 

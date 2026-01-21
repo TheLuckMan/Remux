@@ -3,7 +3,7 @@
 
 -- Binding Mod-key
 -- Syntax:
--- bind_mod(<number>,"<Mod-key>")
+-- bind_mod("<Mod-key>")
 -- Options for Mod: alt | ctrl | super | shift (not recomended)
 
 bind_mod(0, "ctrl")
@@ -29,7 +29,7 @@ bind("mod1", "b", "move-word-left")
 bind("mod1", "f", "move-word-right")
 
 --- 2. Scrolling
-bind("mod1", "V", "scroll-down-command")
+bind("mod0", "v", "scroll-down-command")
 bind("mod1", "v", "scroll-up-command")
 -- bind("mod1", "B", "scroll-left-command")
 -- bind("mod1", "b", "scroll-right-command")
@@ -67,6 +67,9 @@ bind("mod0", "u", "universal-argument")
 bind("mod2", "c", "kill-remux")
 bind("mod0", "g", "keyboard-quit")
 
+bind("mod1", "g", "goto-line")
+bind("mod0", "s", "isearch-forward")
+bind("mod0", "r", "isearch-backward")
 bind("mod1", "x", "execute-command")
 bind("mod2", "f", "find-file")
 bind("mod1", "T", "toggle-line-wrap")
@@ -76,6 +79,14 @@ bind("mod1", "T", "toggle-line-wrap")
 
 add_hook("after-init-once", function(cmd)
   set_buffer_borders(false)
+end)
+
+add_hook("buffer-loaded", function(p)
+  message("Opened file: " .. p)			  
+end)
+
+add_hook("buffer-saved", function(p)
+  message("Saved file: " .. p)
 end)
 
 --[[
@@ -92,4 +103,5 @@ end)
  M-5 C-u C-f - Moves Cursor 5*4 Characters forward
  M-3 C-u C-u C-f - Moves Cursor 3*4*4 Characters forward
  I will exetend this command in future updates
+
 --]]

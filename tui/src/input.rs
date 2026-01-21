@@ -6,6 +6,7 @@ use remux_core::{
     editor::editor::{Editor, InputMode, PhysicalModifiers, Modifiers, KeyMap},
     buffer::Motion,
     config::UserConfig,
+    minibuffer::MiniBufferMode,
 };
 
 use mlua::Lua;
@@ -111,7 +112,7 @@ fn handle_normal_input(
         KeyCode::Up => ed.buffer.move_cursor(Motion::Up),
         KeyCode::Down => ed.buffer.move_cursor(Motion::Down),
         KeyCode::Backspace => { _ =  ed.buffer.delete(Motion::Left); }
-        KeyCode::Enter => ed.buffer.insert_newline(),
+        KeyCode::Enter => ed.insert_newline(),
         KeyCode::Delete => { _ = ed.buffer.delete(Motion::Right); }
         _ => {}
     }
@@ -136,11 +137,23 @@ fn handle_minibuffer_input(
         KeyCode::Char(c) => {
             if let Some(cmd) = keymap.borrow().lookup(mods, c) {
                 editor.borrow_mut().execute_named(&cmd, lua);
-            } else if mods.is_empty() {
-                editor.borrow_mut().minibuffer.push(c);
-            }
+	    } else if mods.is_empty() {
+		let mut ed = editor.borrow_mut();
+		ed.minibuffer.push(c);
+
+		if ed.minibuffer.mode() == MiniBufferMode::ISearchForward {
+		    ed.isearch_update();
+		}
+	    }
         }
-        KeyCode::Backspace => editor.borrow_mut().minibuffer.pop(),
+	KeyCode::Backspace => {
+	    let mut ed = editor.borrow_mut();
+	    ed.minibuffer.pop();
+
+	    if ed.minibuffer.mode() == MiniBufferMode::ISearchForward {
+		ed.isearch_update();
+	    }
+	}
         KeyCode::Enter => editor.borrow_mut().execute_minibuffer(lua),
         KeyCode::Esc => {
             editor.borrow_mut().minibuffer.deactivate();

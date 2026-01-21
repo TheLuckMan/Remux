@@ -4,6 +4,8 @@ pub enum MiniBufferMode {
     Command,    // M-x
     FindFile,   // waiting path
     SaveBuffer,
+    GotoLine,
+    ISearchForward,
     Message { ttl: u8 },    // just a message
 }
 
