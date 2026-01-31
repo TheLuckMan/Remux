@@ -35,7 +35,14 @@ impl HookRegistry {
             }
         }
     }
-
+		pub fn run_table(&self, lua: &Lua, name: &str, table: mlua::Table) {
+				if let Some(funcs) = self.hooks.get(name) {
+						for f in funcs {
+								let func: mlua::Function = lua.registry_value(f).unwrap();
+								let _ = func.call::<_, ()>(table.clone());
+						}
+				}
+		}
     pub fn run(&self, lua: &Lua, name: &str, arg: &str) {
         if let Some(funcs) = self.hooks.get(name) {
             for key in funcs {

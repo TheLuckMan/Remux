@@ -6,7 +6,7 @@ use ratatui::{
 };
 use mlua::Lua;
 use remux_core::editor::editor::Editor;
-
+use crate::view::RenderState;
 use crate::render::{
     buffer::render_buffer,
     status::render_status,
@@ -16,6 +16,7 @@ use crate::render::{
 pub fn render_editor(
     f: &mut Frame,
     editor: &mut Editor,
+		render: &mut RenderState,
     lua: &Lua,
 ) {
     let size = f.size();
@@ -46,7 +47,13 @@ pub fn render_editor(
         ])
         .split(size);
 
-    render_buffer_area(f, editor, chunks[0], lua);
+		render_buffer_area(
+				f,
+				editor,
+				chunks[0],
+				render,
+				lua,
+		);
     f.render_widget(status_bar, chunks[1]);
     render_minibuffer(f, editor, chunks[2]);
 
@@ -56,30 +63,35 @@ pub fn render_editor(
 /// ─────────────────────────────────────────────────────────────
 /// BUFFER
 /// ─────────────────────────────────────────────────────────────
-
 fn render_buffer_area(
     f: &mut Frame,
     editor: &mut Editor,
     area: Rect,
+		render: &mut RenderState,
     lua: &Lua,
 ) {
     editor.hooks.run_once(lua, "after-init-once", "");
+
     let show_borders = editor.user_config.borrow().buffer_borders;
     let block = if show_borders {
         Block::default().borders(Borders::ALL)
     } else {
         Block::default().borders(Borders::NONE)
     };
+
     let inner = block.inner(area);
+
     editor.viewport_width  = inner.width  as usize;
     editor.viewport_height = inner.height as usize;
-     editor.buffer.rebuild_visual_metrics(
+
+    editor.buffer.rebuild_visual_metrics(
         editor.viewport_width,
         editor.wrap_mode,
     );
-    f.render_widget(block, area);
-    render_buffer(f, editor, inner);
+
+		render_buffer(f, editor, inner, render);
 }
+
 
 fn render_cursor(
     f: &mut Frame,

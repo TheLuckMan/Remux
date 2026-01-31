@@ -1,4 +1,5 @@
 // core/src/editor/events.rs
+
 #[derive(Debug)]
 pub enum EditorEvent {
     BeforeCommand { name: String },

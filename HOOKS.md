@@ -22,7 +22,7 @@ end)
 
 ---
 
-## Available hooks (v0.6.0)
+## Available hooks (v0.7.0)
 
 ### Lifecycle hooks
 
@@ -53,6 +53,32 @@ add_hook("after-init-once", function()
   set_buffer_borders(false)
 end)
 ```
+
+---
+
+#### `before-exit`
+
+Called once right before the editor exits.
+
+**Argument:** empty string
+
+```lua
+add_hook("before-exit", function()
+  message("Exiting Remux")
+end)
+```
+
+or (Work in progress)
+
+```lua
+add_hook("before-exit", function()
+  local file = current_buffer_path() or "<unnamed>"
+
+  minibuffer_prompt(
+    "Save file " .. file .. "? (y, n)",
+    "confirm-save-and-exit")
+end)
+``` 
 
 ---
 
@@ -102,6 +128,20 @@ end)
 
 ---
 
+#### `before-buffer-write`
+
+Called before a buffer is written to disk.
+
+**Argument:** file path (string)
+
+```lua
+add_hook("before-buffer-write", function(path)
+  format_buffer()
+end)
+```
+
+---
+
 #### `buffer-saved`
 
 Called after a buffer has been successfully saved.
@@ -136,11 +176,11 @@ end)
 
 Called when the cursor position changes.
 
-**Argument:** empty string
+**Argument:** `"x,y"`
 
 ```lua
-add_hook("cursor-moved", function()
-  -- update UI state
+add_hook("cursor-moved", function(pos)
+  local x, y = pos:match("(%d+),(%d+)")
 end)
 ```
 
@@ -163,6 +203,86 @@ Called after a character has been inserted into the buffer.
 ```lua
 add_hook("after-insert-char", function()
   -- auto-pair, formatting, etc
+end)
+```
+
+---
+
+### Selection hooks
+
+#### `selection-changed`
+
+Called when the selection changes.
+
+**Argument:** table
+
+* `start` — `{ x, y }`
+* `end` — `{ x, y }`
+* OR `{ cleared = true }`
+
+```lua
+add_hook("selection-changed", function(sel)
+  if sel.cleared then
+    message("Selection cleared")
+  else
+    message(
+      "Selection: "
+      .. sel.start.x .. "," .. sel.start.y
+      .. " -> "
+      .. sel["end"].x .. "," .. sel["end"].y
+    )
+  end
+end)
+```
+
+---
+
+### Incremental search hooks
+
+#### `isearch-started`
+
+Called when incremental search starts.
+
+**Argument:** empty string
+
+```lua
+add_hook("isearch-started", function()
+  set_isearch_highlight(true)
+end)
+```
+
+---
+
+#### `isearch-end`
+
+Called when incremental search ends.
+
+**Argument:** empty string
+
+```lua
+add_hook("isearch-end", function()
+  set_isearch_highlight(false)
+end)
+```
+
+---
+
+#### `isearch-update`
+
+Called whenever the isearch query changes.
+
+**Argument:** table with fields:
+
+* `dir` — `"forward"` | `"backward"`
+* `query` — current search string
+* `found` — boolean
+* `cursor` — table `{ x, y }`
+
+```lua
+add_hook("isearch-update", function(ev)
+  if ev.found then
+    message("Found: " .. ev.query)
+  end
 end)
 ```
 

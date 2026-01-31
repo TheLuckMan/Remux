@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "remux-config"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm",
  "mlua",
@@ -413,7 +413,7 @@ dependencies = [
 
 [[package]]
 name = "remux-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "bitflags",
  "crossterm",
@@ -424,7 +424,7 @@ dependencies = [
 
 [[package]]
 name = "remux-tui"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crossterm",
  "mlua",

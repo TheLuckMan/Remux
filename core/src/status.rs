@@ -19,8 +19,7 @@ pub fn build_status(editor: &mut Editor) -> StatusInfo {
         undo_depth: buffer.undo_depth(),
         cursor_line: buffer.cursor_y + 1,
         cursor_col: buffer.cursor_x + 1,
-	scroll_percent: editor.scroll_indicator(),
-        
+				scroll_percent: editor.scroll_indicator()       
     }
 }
 

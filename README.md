@@ -56,7 +56,7 @@ To build Remux from source, the following dependencies are required:
   ```sh
   pkg_add rust lua-5.4.7
   ```
-
+  
 ## Building
 
 To build for develop: 

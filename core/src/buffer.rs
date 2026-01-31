@@ -12,6 +12,7 @@ pub enum UndoAction {
     JoinLine { x: usize, y: usize },
 }
 
+#[derive(Clone)]
 pub struct VisualMetrics {
     pub prefix_sum: Vec<usize>,
 
@@ -49,43 +50,43 @@ impl Line {
     pub fn new(text: String) -> Self {
         let char_len = text.chars().count();
         Self {
-	    text,
-	    char_len,
-	    visual_height: 1,
-	    dirty: true,
-	    last_width: 0,
-	    last_wrap: LineWrapMode::Wrap
-	}
+						text,
+						char_len,
+						visual_height: 1,
+						dirty: true,
+						last_width: 0,
+						last_wrap: LineWrapMode::Wrap
+				}
     }
 
     pub fn empty() -> Self {
-	Self {
+				Self {
             text: String::new(),
             char_len: 0,
             visual_height: 1,
             dirty: true,
             last_width: 0,
             last_wrap: LineWrapMode::Wrap,
-	}
+				}
     }
 
     pub fn split_off(&mut self, x: usize) -> Line {
-	let x = x.min(self.char_len);
+				let x = x.min(self.char_len);
 
-	let byte = Buffer::char_to_byte_idx(&self.text, x);
-	let rest = self.text.split_off(byte);
+				let byte = Buffer::char_to_byte_idx(&self.text, x);
+				let rest = self.text.split_off(byte);
 
-	let rest_len = self.char_len - x;
-	self.char_len = x;
+				let rest_len = self.char_len - x;
+				self.char_len = x;
 
-	Line {
+				Line {
             text: rest,
             char_len: rest_len,
-	    visual_height: 1,
-	    dirty: true,
-	    last_width: 0,
-	    last_wrap: LineWrapMode::Wrap,
-	}
+						visual_height: 1,
+						dirty: true,
+						last_width: 0,
+						last_wrap: LineWrapMode::Wrap,
+				}
     }
 }
 
@@ -115,6 +116,7 @@ impl VisualMetrics {
     }
 }
 
+#[derive(Clone)]
 pub struct Buffer {
     pub cursor_x: usize,
     pub cursor_y: usize,
@@ -135,16 +137,16 @@ impl Buffer {
             modified: false,
             mark: None,
             undo_stack: Vec::new(),
-	    visual: VisualMetrics::new(),
-	    lines: vec![Line::empty()],
+						visual: VisualMetrics::new(),
+						lines: vec![Line::empty()],
         }
     }
 
     fn char_to_byte_idx(s: &str, char_idx: usize) -> usize {
-	if char_idx == 0 {
+				if char_idx == 0 {
             return 0;
-	}
-	s.char_indices()
+				}
+				s.char_indices()
             .nth(char_idx)
             .map(|(i, _)| i)
             .unwrap_or_else(|| s.len())
@@ -163,70 +165,70 @@ impl Buffer {
                     let start = Self::char_to_byte_idx(&line.text, x);
                     let end = Self::char_to_byte_idx(&line.text, x + text.chars().count());
                     line.text.replace_range(start..end, "");
-		    let removed = text.chars().count();
-		    line.char_len -= removed;
+										let removed = text.chars().count();
+										line.char_len -= removed;
                     self.cursor_x = x;
                     self.cursor_y = y;
-		    self.visual.dirty = true;
+										self.visual.dirty = true;
                 }
                 UndoAction::Delete { x, y, text } => {
                     let line = &mut self.lines[y];
                     let byte = Self::char_to_byte_idx(&line.text, x);
                     line.text.insert_str(byte, &text);
-		    let removed = text.chars().count();
-		    line.char_len -= removed;
+										let removed = text.chars().count();
+										line.char_len -= removed;
                     self.cursor_x = x + text.chars().count();
                     self.cursor_y = y;
-		    self.visual.dirty = true;
+										self.visual.dirty = true;
                 }
                 UndoAction::InsertNewline { x, y } => {
                     let next = self.lines.remove(y + 1);
                     self.lines[y].text.push_str(&next.text);
                     self.cursor_x = x;
                     self.cursor_y = y;
-		    self.visual.dirty = true;
+										self.visual.dirty = true;
                 }
                 UndoAction::JoinLine { x, y } => {
                     let tail = self.lines[y].text.split_off(x);
                     self.lines.insert(y + 1, Line::new(tail));
                     self.cursor_x = 0;
                     self.cursor_y = y + 1;
-		    self.visual.dirty = true;
+										self.visual.dirty = true;
                 }
             }
         }
     }
 
     pub fn ensure_visuals( &mut self, width: usize, wrap: LineWrapMode) {
-	if self.visual.dirty
+				if self.visual.dirty
             || self.visual.last_width != width
             || self.visual.last_wrap != wrap
-	{
+				{
             self.rebuild_visual_metrics(width, wrap);
             self.visual.dirty = false;
             self.visual.last_width = width;
             self.visual.last_wrap = wrap;
-	}
+				}
     } 
 
     pub fn insert_text_at(&mut self, x: usize, y: usize, text: &str) {
         let line = &mut self.lines[y];
         let byte = Self::char_to_byte_idx(&line.text, x);
-	let added = text.chars().count();
-	line.text.insert_str(byte, text);
-	line.char_len += added;
+				let added = text.chars().count();
+				line.text.insert_str(byte, text);
+				line.char_len += added;
         self.push_undo(UndoAction::Insert { x, y, text: text.to_string() });
-	self.cursor_x = x + text.chars().count();
+				self.cursor_x = x + text.chars().count();
         self.cursor_y = y;
     }
     
     pub fn insert_char_raw(&mut self, ch: char) {
-	let line = &mut self.lines[self.cursor_y];
-	let byte_idx = Self::char_to_byte_idx(&line.text, self.cursor_x);
-	self.cursor_x += 1;
-	line.text.insert(byte_idx, ch);
-	line.char_len += 1;
-	self.visual.dirty = true;
+				let line = &mut self.lines[self.cursor_y];
+				let byte_idx = Self::char_to_byte_idx(&line.text, self.cursor_x);
+				self.cursor_x += 1;
+				line.text.insert(byte_idx, ch);
+				line.char_len += 1;
+				self.visual.dirty = true;
     }
 
     pub fn insert_char(
@@ -247,14 +249,14 @@ impl Buffer {
     }
 
     pub fn insert_newline_raw(&mut self) {
-	let x = self.cursor_x;
-	let y = self.cursor_y;
-	let rest = self.lines[y].split_off(x);
-	self.lines.insert(y + 1, rest);
-	self.cursor_y += 1;
-	self.cursor_x = 0;
-	self.visual.dirty = true;
-	self.push_undo(UndoAction::InsertNewline { x, y });
+				let x = self.cursor_x;
+				let y = self.cursor_y;
+				let rest = self.lines[y].split_off(x);
+				self.lines.insert(y + 1, rest);
+				self.cursor_y += 1;
+				self.cursor_x = 0;
+				self.visual.dirty = true;
+				self.push_undo(UndoAction::InsertNewline { x, y });
     }
 
     
@@ -265,7 +267,7 @@ impl Buffer {
             let b = Self::char_to_byte_idx(&line.text, end_x);
             let deleted = line.text[a..b].to_string();
             line.text.replace_range(a..b, "");
-	    line.char_len -= end_x - start_x;
+						line.char_len -= end_x - start_x;
             self.push_undo(UndoAction::Delete { x: start_x, y: start_y, text: deleted.clone() });
             self.cursor_x = start_x;
             self.cursor_y = start_y;
@@ -275,11 +277,11 @@ impl Buffer {
             let first_line = &mut self.lines[start_y];
             let a = Self::char_to_byte_idx(&first_line.text, start_x);
             deleted.push_str(&first_line.text[a..]);
-	    first_line.char_len = start_x;
+						first_line.char_len = start_x;
             for _ in start_y + 1..end_y {
                 deleted.push('\n');
-		let removed = self.lines.remove(start_y + 1);
-		deleted.push_str(&removed.text);
+								let removed = self.lines.remove(start_y + 1);
+								deleted.push_str(&removed.text);
             }
             let last_line = &mut self.lines[start_y + 1];
             let b = Self::char_to_byte_idx(&last_line.text, end_x);
@@ -287,7 +289,7 @@ impl Buffer {
             deleted.push_str(&last_line.text[..b]);
 
             let rest = last_line.text[b..].to_string();
-	    self.lines[start_y].char_len += rest.chars().count();
+						self.lines[start_y].char_len += rest.chars().count();
             self.lines.remove(start_y + 1);
 
             self.push_undo(UndoAction::Delete { x: start_x, y: start_y, text: deleted.clone() });
@@ -310,83 +312,83 @@ impl Buffer {
         let x = self.cursor_x;
 
         let line = self.lines.get(y)?;
-	if x >= line.char_len {
-	    return None;
-	}
-	
-	self.visual.dirty = true;
+				if x >= line.char_len {
+						return None;
+				}
+				
+				self.visual.dirty = true;
         Some(self.delete_range(x, y, x + 1, y))
     }
 
     fn delete_backward_char(&mut self) -> Option<String> {
-	let y = self.cursor_y;
-	let x = self.cursor_x;
-	if x == 0 && y == 0 {
+				let y = self.cursor_y;
+				let x = self.cursor_x;
+				if x == 0 && y == 0 {
             return None;
-	}
-	if x > 0 {
+				}
+				if x > 0 {
             return Some(self.delete_range(x - 1, y, x, y));
-	}
-	let prev_y = y - 1;
-	let prev_len = self.lines[prev_y].char_len;
-	self.visual.dirty = true;
-	
-	Some(self.delete_range(prev_len, prev_y, 0, y))
+				}
+				let prev_y = y - 1;
+				let prev_len = self.lines[prev_y].char_len;
+				self.visual.dirty = true;
+				
+				Some(self.delete_range(prev_len, prev_y, 0, y))
     }
     
     pub fn rebuild_visual_metrics(&mut self, width: usize, wrap: LineWrapMode) {
-	let w = width.max(1);
+				let w = width.max(1);
 
-	self.visual.prefix_sum.clear();
-	self.visual.prefix_sum.reserve(self.lines.len());
+				self.visual.prefix_sum.clear();
+				self.visual.prefix_sum.reserve(self.lines.len());
 
-	let mut acc = 0;
-	for line in &mut self.lines {
+				let mut acc = 0;
+				for line in &mut self.lines {
             let vh = match wrap {
-		LineWrapMode::Truncate => 1,
-		LineWrapMode::Wrap => {
+								LineWrapMode::Truncate => 1,
+								LineWrapMode::Wrap => {
                     let len = line.char_len.max(1);
                     (len + w - 1) / w
-		}
+								}
             };
 
             line.visual_height = vh;
 
             self.visual.prefix_sum.push(acc);
             acc += vh;
-	}
+				}
     }
     
     pub fn move_cursor(&mut self, motion: Motion) {
         match motion {
             Motion::Left => { if self.cursor_x > 0 { self.cursor_x -= 1 } },
             Motion::Right => {
-		if let Some(line) = self.lines.get(self.cursor_y) {
+								if let Some(line) = self.lines.get(self.cursor_y) {
                     if self.cursor_x < line.char_len { self.cursor_x += 1 }
-		}
-	    },
+								}
+						},
             Motion::Up => {
-		if self.cursor_y > 0 {
-		    self.cursor_y -= 1;
-		    self.clamp_cursor_x()
-		}
-	    },
+								if self.cursor_y > 0 {
+										self.cursor_y -= 1;
+										self.clamp_cursor_x()
+								}
+						},
             Motion::Down => {
-		if self.cursor_y + 1 < self.lines.len() {
-		    self.cursor_y += 1;
-		    self.clamp_cursor_x()
-		}
-	    },
+								if self.cursor_y + 1 < self.lines.len() {
+										self.cursor_y += 1;
+										self.clamp_cursor_x()
+								}
+						},
             Motion::Bol => self.cursor_x = 0,
             Motion::Eol => self.cursor_x = self.lines.get(self.cursor_y).map(|l| l.char_len).unwrap_or(0),
             Motion::BufferStart => {
-		self.cursor_x = 0;
-		self.cursor_y = 0
-	    },
+								self.cursor_x = 0;
+								self.cursor_y = 0
+						},
             Motion::BufferEnd => {
-		self.cursor_y = self.lines.len().saturating_sub(1);
+								self.cursor_y = self.lines.len().saturating_sub(1);
                 self.cursor_x = self.lines.get(self.cursor_y).map(|l| l.char_len).unwrap_or(0)
-	    },
+						},
             Motion::WordLeft => self.move_word_left(),
             Motion::WordRight => self.move_word_right(),
         }
@@ -416,7 +418,7 @@ impl Buffer {
         let a = Self::char_to_byte_idx(&line.text, start);
         let b = Self::char_to_byte_idx(&line.text, end);
         line.text.replace_range(a..b, "");
-	line.char_len -= end - start;
+				line.char_len -= end - start;
         self.cursor_x = start;
 
         self.push_undo(UndoAction::Delete {
@@ -428,111 +430,120 @@ impl Buffer {
         Some(killed)
     }
 
-    pub fn search_forward(&self, needle: &str) -> Option<(usize, usize)> {
-	for y in self.cursor_y..self.lines.len() {
-            let line = &self.lines[y];
-            let start = if y == self.cursor_y { self.cursor_x } else { 0 };
+		pub fn search_forward(
+				&self,
+				needle: &str,
+				from: (usize, usize),
+		) -> Option<(usize, usize)> {
+				let (start_x, start_y) = from;
 
-            let hay = &line.text[Self::char_to_byte_idx(&line.text, start)..];
-            if let Some(pos) = hay.find(needle) {
-		let x = start + hay[..pos].chars().count();
-		return Some((x, y));
-            }
-	}
-	None
-    }
+				for y in start_y..self.lines.len() {
+						let line = &self.lines[y];
+						let start = if y == start_y { start_x } else { 0 };
 
+						let hay = &line.text[Self::char_to_byte_idx(&line.text, start)..];
+						if let Some(pos) = hay.find(needle) {
+								let x = start + hay[..pos].chars().count();
+								return Some((x, y));
+						}
+				}
+				None
+		}
+		
     pub fn search_backward(&self, query: &str, from: (usize, usize)) -> Option<(usize, usize)> {
-	if query.is_empty() {
+				if query.is_empty() {
             return None;
-	}
-	let (mut x, mut y) = from;
-	while y > 0 || x > 0 {
+				}
+				let (mut x, mut y) = from;
+				while y > 0 || x > 0 {
             if x == 0 {
-		y -= 1;
-		x = self.lines[y].char_len;
+								y -= 1;
+								x = self.lines[y].char_len;
             }
             x -= 1;
             let line = &self.lines[y].text;
             if x + query.len() <= line.len() && &line[x..x + query.len()] == query {
-		return Some((x, y));
+								return Some((x, y));
             }
-	}
-	None
+				}
+				None
     }
 
-    pub fn search_forward_from(
+		fn clone_for_search(&self, from: (usize, usize)) -> Buffer {
+        let mut b = self.clone();
+        b.cursor_x = from.0;
+        b.cursor_y = from.1;
+        b
+    }
+		
+		 pub fn search_forward_from(
         &self,
         needle: &str,
         from: (usize, usize),
     ) -> Option<(usize, usize)> {
-        if needle.is_empty() {
-            return None;
-        }
-        let (mut x, mut y) = from;
-        while y < self.lines.len() {
-            let line = &self.lines[y].text;
-            let start_x = if y == from.1 {
-                x + 1 
-            } else {
-                0
-            };
-            if start_x < line.len() {
-                if let Some(pos) = line[start_x..].find(needle) {
-                    return Some((start_x + pos, y));
-                }
-            }
-            y += 1;
-            x = 0;
-        }
-        None
+        // let (old_x, old_y) = (self.cursor_x, self.cursor_y); 
+
+        // временно считаем, что поиск стартует отсюда
+        let tmp = self.clone_for_search(from);
+        let res = tmp.search_forward(needle, from);
+
+        res
+    }
+
+    pub fn search_backward_from(
+        &self,
+        needle: &str,
+        from: (usize, usize),
+    ) -> Option<(usize, usize)> {
+        let tmp = self.clone_for_search(from);
+        tmp.search_backward(needle, from)
     }
 
     pub fn kill_word(&mut self) -> Option<String> {
-	self.kill_in_line(|chars, x| {
+				self.kill_in_line(|chars, x| {
             if x >= chars.len() { return None; }
             let mut end = x;
             while end < chars.len() && chars[end].is_whitespace() { end += 1; }
             while end < chars.len() && !chars[end].is_whitespace() { end += 1; }
             Some((x, end))
-	})
+				})
     }
 
 
     pub fn kill_backward_word(&mut self) -> Option<String> {
-	self.kill_in_line(|chars, x| {
+				self.kill_in_line(|chars, x| {
             if x == 0 { return None; }
             let mut start = x;
             while start > 0 && chars[start - 1].is_whitespace() { start -= 1; }
             while start > 0 && !chars[start - 1].is_whitespace() { start -= 1; }
             Some((start, x))
-	})
+				})
     }
 
     pub fn kill_sentence(&mut self) -> Option<String> {
-	self.kill_in_line(|chars, x| {
+				self.kill_in_line(|chars, x| {
             if x >= chars.len() { return None; }
             let mut end = x;
             while end < chars.len() {
-		if ".!?".contains(chars[end])
+								if ".!?".contains(chars[end])
                     && (end + 1 == chars.len() || chars[end + 1].is_whitespace())
-		{
+								{
                     end += 1;
                     if end < chars.len() && chars[end].is_whitespace() {
-			end += 1;
+												end += 1;
                     }
                     break;
-		}
-		end += 1;
+								}
+								end += 1;
             }
             Some((x, end))
-	})
+				})
     }
 
     pub fn kill_line(&mut self) -> Option<String> {
-	self.kill_in_line(|chars, x| {
+				self.kill_in_line(|chars, x| {
             Some((x, chars.len()))
-	})
+				})
     }
 
     
@@ -609,39 +620,39 @@ impl Buffer {
             for ch in line.chars() { self.insert_char_raw(ch) }
         }
         self.push_undo(UndoAction::Insert { x, y, text: text.to_string() });
-	self.visual.dirty = true;
+				self.visual.dirty = true;
     }
 
 
     pub fn expand_tilde<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
-	let path = path.as_ref();
+				let path = path.as_ref();
 
-	let s = match path.to_str() {
+				let s = match path.to_str() {
             Some(s) => s,
             None => return path.to_path_buf(),
-	};
+				};
 
-	if s == "~" || s.starts_with("~/") {
+				if s == "~" || s.starts_with("~/") {
             if let Some(home) = std::env::var_os("HOME") {
-		if s.len() == 1 {
+								if s.len() == 1 {
                     return PathBuf::from(home);
-		} else {
+								} else {
                     return PathBuf::from(home).join(&s[2..]);
-		}
+								}
             }
-	}
+				}
 
-	path.to_path_buf()
+				path.to_path_buf()
     }
     pub fn open_file(&mut self, path: PathBuf) -> io::Result<()> {
-	let path = self.expand_tilde(path);
+				let path = self.expand_tilde(path);
         if !path.exists() {
-	    self.lines = vec![Line::new(String::new())];
-	    self.file_path = Some(path);
-	    self.cursor_x = 0;
-	    self.cursor_y = 0;
-	    return Ok(())
-	}
+						self.lines = vec![Line::new(String::new())];
+						self.file_path = Some(path);
+						self.cursor_x = 0;
+						self.cursor_y = 0;
+						return Ok(())
+				}
         let content = std::fs::read_to_string(&path)?;
         self.lines = content.lines().map(|s| Line::new(s.to_string())).collect();
         self.file_path = Some(path);
@@ -657,15 +668,15 @@ impl Buffer {
     pub fn save_as(&mut self, mut path: PathBuf) -> io::Result<()> {
         if path.is_relative() { path = std::env::current_dir()?.join(path) }
         if let Some(parent) = path.parent() { if !parent.as_os_str().is_empty() { std::fs::create_dir_all(parent)? } }
-	let mut out = String::new();
+				let mut out = String::new();
 
-	for (i, line) in self.lines.iter().enumerate() {
-	    if i > 0 {
-		out.push('\n');
-	    }
-	    out.push_str(&line.text);
-	}
-	std::fs::write(&path, out)?;
+				for (i, line) in self.lines.iter().enumerate() {
+						if i > 0 {
+								out.push('\n');
+						}
+						out.push_str(&line.text);
+				}
+				std::fs::write(&path, out)?;
         self.file_path = Some(path);
         Ok(())
     }

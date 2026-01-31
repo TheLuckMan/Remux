@@ -6,6 +6,7 @@ pub enum MiniBufferMode {
     SaveBuffer,
     GotoLine,
     ISearchForward,
+    ISearchBackward,
     Message { ttl: u8 },    // just a message
 }
 

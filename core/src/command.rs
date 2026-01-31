@@ -44,6 +44,11 @@ impl Command {
             _ => None,
         }
     }
+		pub fn modifies_prefix(&self) -> bool {
+				self.name == "universal-argument"
+						|| self.name == "negative-argument"
+						|| self.name.starts_with("digit-argument-")
+		}
 }
 
 impl CommandRegistry {

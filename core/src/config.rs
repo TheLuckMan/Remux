@@ -7,6 +7,7 @@ pub struct UserConfig {
     pub prefix_keys: [Option<char>; 3],    // Which key activates prefix
     pub prefix_masks: [PhysicalModifiers; 3], // Physical Modifiers with activates prefix
     pub buffer_borders: bool,
+		pub isearch_highlight: bool,
 }
 
 impl Default for UserConfig {
@@ -29,7 +30,8 @@ impl Default for UserConfig {
                 PhysicalModifiers::CTRL,
             ],
 	    
-	    buffer_borders: false,
+						buffer_borders: false,
+						isearch_highlight: false,
         }
     }
 }

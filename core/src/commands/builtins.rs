@@ -10,8 +10,8 @@ fn digit_argument(ctx: CommandContext, digit: i32) {
 
     ed.prefix = match ed.prefix {
         PrefixState::None => PrefixState::Digits(digit),           
-        PrefixState::Digits(v) => PrefixState::Digits(v * 10 + digit), 
-        PrefixState::Universal(_) => PrefixState::Digits(digit),  
+				PrefixState::Digits(v) =>	PrefixState::Digits(v * 10 + digit),
+        PrefixState::Universal(v) => PrefixState::Digits(v * 10 + digit),  
     };
 
     let shown = match ed.prefix {
@@ -21,7 +21,7 @@ fn digit_argument(ctx: CommandContext, digit: i32) {
 
     ed.minibuffer.activate(
         &format!("C-u {}", shown),
-        MiniBufferMode::Message { ttl: 2 },
+        MiniBufferMode::Message { ttl: 4 },
     );
 }
 
@@ -31,7 +31,7 @@ fn universal_argument(ctx: CommandContext) {
     ed.prefix = match ed.prefix {
         PrefixState::None => PrefixState::Universal(4),  // first C-u → 4
         PrefixState::Universal(v) => PrefixState::Universal(v * 4),
-        PrefixState::Digits(v) => PrefixState::Digits(v * 4), 
+        PrefixState::Digits(v) => PrefixState::Digits(v), 
     };
 
 
@@ -42,7 +42,7 @@ fn universal_argument(ctx: CommandContext) {
 
     ed.minibuffer.activate(
         &format!("C-u {}", shown),
-        MiniBufferMode::Message { ttl: 2 },
+        MiniBufferMode::Message { ttl: 4 },
     );
 }
 
