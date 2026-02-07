@@ -218,6 +218,7 @@ pub struct Editor {
     pub hooks: HookRegistry,
     pub mode: InputMode,
     pub should_quit: bool,
+		pub exit_confirmed: bool,
     pub event_queue: Vec<EditorEvent>,
     pub wrap_mode: LineWrapMode,
     pub scroll_y: usize,
@@ -249,6 +250,7 @@ impl Editor {
             hooks: HookRegistry::new(),
             mode: InputMode::Normal,
             should_quit: false,
+						exit_confirmed: false,
             event_queue: Vec::new(),
             wrap_mode: LineWrapMode::Wrap,
             scroll_y: 0,
@@ -792,6 +794,30 @@ impl Editor {
 				self.scroll_intent = ScrollIntent::FollowCursor;
 		}
 
+pub fn should_confirm_exit(&mut self, lua: &Lua) -> bool {
+    if let Some(values) =
+        self.hooks.run_collect_bool(lua, "confirm-exit-with-unsaved", "")
+    {
+        return values.iter().all(|v| *v);
+    }
+
+    true
+}
+
+
+		pub fn confirm_save_and_exit(&mut self, lua: &Lua) {
+				//				let filename = self.buffer.file_name();
+				let filename = self.buffer.file_name();
+
+
+				self.set_mode(lua, InputMode::MiniBuffer);
+
+				self.minibuffer.activate(
+						&format!("{filename} isn't saved, save? (y,n)"),
+						MiniBufferMode::ExitConfirm
+				);
+		}
+
 		pub fn execute_named(&mut self, name: &str, lua: &Lua) {
 				if let Some(cmd) = self.commands.get(name) {
 						if name == "universal-argument" {
@@ -830,73 +856,158 @@ impl Editor {
 		}
 
 		pub fn execute_minibuffer(&mut self, lua: &Lua) {
-				// let input = self.minibuffer.get().to_string();
-				// self.minibuffer.deactivate();
-				// self.set_mode(lua, InputMode::Normal);
-
-				// match std::mem::replace(&mut self.minibuffer_action, MiniBufferAction::None) {
-				// 		MiniBufferAction::Command(cmd) => {
-				// 				self.execute_named(&cmd, lua);
-				// 				return;
-				// 		}
-				// 		MiniBufferAction::BeforeExitConfirm => {
-				// 				match input.as_str() {
-				// 						"y" | "Y" => {
-				// 								let _ = self.buffer.save();
-				// 								self.should_quit = true;
-				// 						}
-				// 						"n" | "N" => {
-				// 								self.should_quit = true;
-				// 						}
-				// 						_ => {
-				// 								self.minibuffer.message("Answer y or n");
-				// 						}
-				// 				}
-				// 				return;
-				// 		}
-						
-				// 		MiniBufferAction::None => {}
-				// }
-				
 				let mode = self.minibuffer.mode();
-				let input = match mode {
-						MiniBufferMode::Command => self.minibuffer.get().strip_prefix("M-x ").unwrap_or("").trim(),
-						MiniBufferMode::FindFile => self.minibuffer.get().strip_prefix("Find file: ").unwrap_or("").trim(),
-						MiniBufferMode::SaveBuffer => self.minibuffer.get().strip_prefix("Save buffer as: ").unwrap_or("").trim(),
-						MiniBufferMode::GotoLine => self.minibuffer.get().strip_prefix("Goto line: ").unwrap_or("").trim(),
-						
-						_ => "",
-				}.to_string();
+				let raw = self.minibuffer.get().to_string();
 				self.minibuffer.deactivate();
 				self.set_mode(lua, InputMode::Normal);
-				match mode { 
+				
+				match mode {
+
+						MiniBufferMode::Command => {
+								let input = raw.strip_prefix("M-x ").unwrap_or("").trim();
+								self.execute_named(input, lua);
+						}
+
 						MiniBufferMode::FindFile => {
-								match self.buffer.open_file(input.clone().into()) {
-										Ok(_) => { self.minibuffer.message("Opened file"); self.emit_buffer_changed(lua, "open-file"); }
+								let input = raw.strip_prefix("Find file: ").unwrap_or("").trim();
+
+								match self.buffer.open_file(input.into()) {
+										Ok(_) => {
+												self.minibuffer.message("Opened file");
+												self.emit_buffer_changed(lua, "open-file");
+										}
 										Err(e) => self.minibuffer.message(&format!("Open failed: {e}")),
 								}
 						}
+
 						MiniBufferMode::SaveBuffer => {
-								if input.is_empty() { self.minibuffer.message("Save failed: empty file name"); return; }
-								self.hooks.run(lua, "before-buffer-write", &input);
-								match self.buffer.save_as(input.clone().into()) {
+								let input = raw.strip_prefix("Save buffer as: ").unwrap_or("").trim();
+
+								if input.is_empty() {
+										self.minibuffer.message("Save failed: empty file name");
+										return;
+								}
+
+								self.hooks.run(lua, "before-buffer-write", input);
+
+								match self.buffer.save_as(input.into()) {
 										Ok(_) => {
-												self.hooks.run(lua, "buffer-saved", &input);
+												self.hooks.run(lua, "buffer-saved", input);
 												self.minibuffer.message("Saved buffer!");
 										}
 										Err(e) => self.minibuffer.message(&format!("Save failed: {e}")),
 								}
 						}
+
 						MiniBufferMode::GotoLine => {
-								if input.is_empty() { self.minibuffer.message("Line: 1"); return; }
+								let input = raw.strip_prefix("Goto line: ").unwrap_or("").trim();
 								let n = input.parse::<usize>().unwrap_or(1);
 								self.goto_line(n);
 						}
+
+						MiniBufferMode::ExitConfirm => {
+
+								let input = raw
+										.chars()
+										.rev()
+										.find(|c| !c.is_whitespace())
+										.map(|c| c.to_ascii_lowercase());
+
+								match input {
+										Some('y') => {
+												if self.buffer.file_path.is_none() {
+														self.minibuffer.activate(
+																"Save buffer as: ",
+																MiniBufferMode::SaveBuffer
+														);
+														self.mode = InputMode::MiniBuffer;
+														self.minibuffer_action = MiniBufferAction::BeforeExitConfirm;
+														return;
+												}
+
+												match self.buffer.save() {
+														Ok(_) => self.should_quit = true,
+														Err(e) => self.minibuffer.message(&format!("Save failed: {e}")),
+												}
+										}
+										Some('n') => {
+												self.exit_confirmed = true;
+												self.should_quit = true;
+										}
+										_ => {
+												self.minibuffer.message("Cancelled");
+										}
+								}
+						}
+
 						MiniBufferMode::ISearchForward => {
 								self.isearch_finish();
 						}
-						MiniBufferMode::Command => self.execute_named(&input, lua),
+
 						_ => {}
 				}
 		}
+
+
+		// pub fn execute_minibuffer(&mut self, lua: &Lua) { 
+		// 		let mode = self.minibuffer.mode();
+		// 		let input = match mode {
+		// 				MiniBufferMode::Command => self.minibuffer.get().strip_prefix("M-x ").unwrap_or("").trim(),
+		// 				MiniBufferMode::FindFile => self.minibuffer.get().strip_prefix("Find file: ").unwrap_or("").trim(),
+		// 				MiniBufferMode::SaveBuffer => self.minibuffer.get().strip_prefix("Save buffer as: ").unwrap_or("").trim(),
+		// 				MiniBufferMode::GotoLine => self.minibuffer.get().strip_prefix("Goto line: ").unwrap_or("").trim(),
+		
+		// 				_ => "",
+		// 		}.to_string();
+		// 		self.minibuffer.deactivate();
+		// 		self.set_mode(lua, InputMode::Normal);
+		// 		match mode { 
+		// 				MiniBufferMode::FindFile => {
+		// 						match self.buffer.open_file(input.clone().into()) {
+		// 								Ok(_) => { self.minibuffer.message("Opened file"); self.emit_buffer_changed(lua, "open-file"); }
+		// 								Err(e) => self.minibuffer.message(&format!("Open failed: {e}")),
+		// 						}
+		// 				}
+		// 				MiniBufferMode::SaveBuffer => {
+		// 						if input.is_empty() { self.minibuffer.message("Save failed: empty file name"); return; }
+		// 						self.hooks.run(lua, "before-buffer-write", &input);
+		// 						match self.buffer.save_as(input.clone().into()) {
+		// 								Ok(_) => {
+		// 										self.hooks.run(lua, "buffer-saved", &input);
+		// 										self.minibuffer.message("Saved buffer!");
+		// 								}
+		// 								Err(e) => self.minibuffer.message(&format!("Save failed: {e}")),
+		// 						}
+		// 				}
+		// 				MiniBufferMode::GotoLine => {
+		// 						if input.is_empty() { self.minibuffer.message("Line: 1"); return; }
+		// 						let n = input.parse::<usize>().unwrap_or(1);
+		// 						self.goto_line(n);
+		// 				}
+		// 				MiniBufferMode::ISearchForward => {
+		// 						self.isearch_finish();
+		// 				}
+		// 				MiniBufferMode::ExitConfirm => {
+		// 						let input = self.minibuffer.get().to_string();
+
+		// 						self.minibuffer.deactivate();
+		// 						self.set_mode(lua, InputMode::Normal);
+
+		// 						match input.as_str() {
+		// 								"y" | "Y" => {
+		// 										let _ = self.buffer.save();
+		// 										self.should_quit = true;
+		// 								}
+		// 								"n" | "N" => {
+		// 										self.should_quit = true;
+		// 								}
+		// 								_ => {
+		// 										self.minibuffer.message("Cancelled");
+		// 								}
+		// 						}
+		// 				}
+		// 				MiniBufferMode::Command => self.execute_named(&input, lua),
+		// 				_ => {}
+		// 		}
+		// }
 }

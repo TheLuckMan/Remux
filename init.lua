@@ -98,14 +98,9 @@ add_hook("buffer-saved", function(p)
   message("Saved file: " .. p)
 end)
 
--- It will work in 0.8.0
--- add_hook("before-exit", function()
---   local file = current_buffer_path() or "<unnamed>"
-
---   minibuffer_prompt(
---     "Save file " .. file .. "? (y, n)",
---     "confirm-save-and-exit")
--- end)
+add_hook("confirm-exit-with-unsaved", function()
+  return false
+end)
 
 -- 8. Notes ----------------------------------------------------------------------------------------
 --[[

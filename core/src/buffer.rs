@@ -229,6 +229,7 @@ impl Buffer {
 				line.text.insert(byte_idx, ch);
 				line.char_len += 1;
 				self.visual.dirty = true;
+				self.modified = true;
     }
 
     pub fn insert_char(
@@ -256,6 +257,7 @@ impl Buffer {
 				self.cursor_y += 1;
 				self.cursor_x = 0;
 				self.visual.dirty = true;
+				self.modified = true;
 				self.push_undo(UndoAction::InsertNewline { x, y });
     }
 
@@ -295,6 +297,7 @@ impl Buffer {
             self.push_undo(UndoAction::Delete { x: start_x, y: start_y, text: deleted.clone() });
             self.cursor_x = start_x;
             self.cursor_y = start_y;
+						self.modified = true;
             deleted
         }
     }
@@ -317,6 +320,7 @@ impl Buffer {
 				}
 				
 				self.visual.dirty = true;
+				self.modified = true;
         Some(self.delete_range(x, y, x + 1, y))
     }
 
@@ -332,7 +336,7 @@ impl Buffer {
 				let prev_y = y - 1;
 				let prev_len = self.lines[prev_y].char_len;
 				self.visual.dirty = true;
-				
+				self.modified = true;
 				Some(self.delete_range(prev_len, prev_y, 0, y))
     }
     
@@ -677,6 +681,7 @@ impl Buffer {
 						out.push_str(&line.text);
 				}
 				std::fs::write(&path, out)?;
+				self.modified = false;
         self.file_path = Some(path);
         Ok(())
     }

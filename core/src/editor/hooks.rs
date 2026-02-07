@@ -52,6 +52,53 @@ impl HookRegistry {
             }
         }
     }
+			pub fn run_collect(
+				&self,
+				lua: &Lua,
+				name: &str,
+				arg: &str
+		) -> Option<Vec<String>> {
+
+				let mut out = Vec::new();
+
+				if let Some(funcs) = self.hooks.get(name) {
+						for key in funcs {
+								if let Ok(func) = lua.registry_value::<Function>(key) {
+										if let Ok(Some(v)) = func.call::<_, Option<String>>(arg) {
+												out.push(v);
+										}
+								}
+						}
+				}
+
+				if out.is_empty() {
+						None
+				} else {
+						Some(out)
+				}
+			}
+
+		pub fn run_collect_bool(
+				&self,
+				lua: &Lua,
+				name: &str,
+				arg: &str
+		) -> Option<Vec<bool>> {
+
+				let mut out = Vec::new();
+
+				if let Some(funcs) = self.hooks.get(name) {
+						for key in funcs {
+								if let Ok(func) = lua.registry_value::<Function>(key) {
+										if let Ok(Some(v)) = func.call::<_, Option<bool>>(arg) {
+												out.push(v);
+										}
+								}
+						}
+				}
+
+				if out.is_empty() { None } else { Some(out) }
+		}
 }
 
 #[derive(Default)]

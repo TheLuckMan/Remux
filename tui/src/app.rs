@@ -108,16 +108,29 @@ impl App {
 				})
     }
 
-   pub fn run(&mut self) -> io::Result<()> {
-    while !self.editor.borrow().should_quit {
-        self.tick()?;
-    }
-			 if self.editor.borrow().buffer.is_modified() {
-					 self.editor.borrow().hooks.run(&self.lua, "before-exit", "");
-			 }
+		pub fn run(&mut self) -> io::Result<()> {
+				loop {
+						self.tick()?;
 
-    self.shutdown()
-}
+						let mut ed = self.editor.borrow_mut();
+
+						if ed.should_quit {
+
+								if !ed.exit_confirmed
+										&& ed.buffer.is_modified()
+										&& ed.should_confirm_exit(&self.lua)
+								{
+										ed.should_quit = false;
+										ed.confirm_save_and_exit(&self.lua);
+										continue;
+								}
+
+								break;
+						}
+				}
+
+				self.shutdown()
+		}
 
 
 fn tick(&mut self) -> io::Result<()> {
