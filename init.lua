@@ -99,7 +99,7 @@ add_hook("buffer-saved", function(p)
 end)
 
 add_hook("confirm-exit-with-unsaved", function()
-  return false
+  return true
 end)
 
 -- 8. Notes ----------------------------------------------------------------------------------------
